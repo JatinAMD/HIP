@@ -266,12 +266,18 @@ typedef enum hipSharedMemConfig {
  * Struct for data in 3D
  *
  */
+template < typename T<
+    typename std::common_type<decltype(hc_get_group_id), decltype(hc_get_group_size),
+                              decltype(hc_get_num_groups), decltype(hc_get_workitem_id)> >::type f>
 typedef struct dim3 {
     uint32_t x;  ///< x
     uint32_t y;  ///< y
     uint32_t z;  ///< z
 #ifdef __cplusplus
+    using R = decltype(f(0));
     dim3(uint32_t _x = 1, uint32_t _y = 1, uint32_t _z = 1) : x(_x), y(_y), z(_z){};
+    dim3(R data) {x = data.x; y = data.y; z = data.z;}
+    operator R(void) {R data; data.x = x; data.y = y; data.z = z; return data;}
 #endif
 } dim3;
 
