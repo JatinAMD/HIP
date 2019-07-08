@@ -206,12 +206,15 @@ class Coordinates {
 
     struct X {
         __device__ operator R() const { return f(0); }
+        __device__ uint32_t operator=(R _) { return f(0); }
     };
     struct Y {
         __device__ operator R() const { return f(1); }
+        __device__ uint32_t operator=(R _) { return f(1); }
     };
     struct Z {
         __device__ operator R() const { return f(2); }
+        __device__ uint32_t operator=(R _) { return f(2); }
     };
 
    public:
@@ -219,6 +222,34 @@ class Coordinates {
     static constexpr Y y{};
     static constexpr Z z{};
 };
+
+extern "C" __attribute__((const,hc)) typedef uint32_t (*ExtCFuncPtr)(unsigned int);
+
+class Coordinatess{
+    ExtCFuncPtr initializer;
+
+   public:
+    uint32_t x = -1, y = -1, z = -1;
+    Coordinatess() = delete;
+    Coordinatess(uint32_t (*i)(unsigned int)) : initializer(i) {
+        x = initializer(0);
+        y = initializer(1);
+        z = initializer(2);
+    }
+};
+
+/*
+static Coordinatess blockDim(hc_get_group_size);
+static Coordinatess blockIdx(hc_get_group_id);
+static Coordinatess gridDim(hc_get_num_groups);
+static Coordinatess threadIdx(hc_get_workitem_id);
+
+
+static constexpr Coordinates(hc_get_group_size) blockDim;
+static constexpr Coordinates(hc_get_group_id) blockIdx;
+static constexpr Coordinates(hc_get_num_groups) gridDim;
+static constexpr Coordinates(hc_get_workitem_id) threadIdx;
+*/
 
 static constexpr Coordinates<hc_get_group_size> blockDim;
 static constexpr Coordinates<hc_get_group_id> blockIdx;
