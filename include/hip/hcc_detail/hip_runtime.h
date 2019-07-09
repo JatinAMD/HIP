@@ -198,7 +198,7 @@ __device__ int __hip_move_dpp_N(int src);
 
 #if defined __HCC__
 
-template <
+/*template <
     typename std::common_type<decltype(hc_get_group_id), decltype(hc_get_group_size),
                               decltype(hc_get_num_groups), decltype(hc_get_workitem_id)>::type f>
 class Coordinates {
@@ -221,40 +221,44 @@ class Coordinates {
     static constexpr X x{};
     static constexpr Y y{};
     static constexpr Z z{};
+};*/
+
+extern "C" __attribute__((const,hc)) typedef uint32_t (*fptr_ui32_ui)(unsigned int);
+
+struct CoordinatesBase {
+    uint32_t x = -1, y = -1, z = -1;
+    CoordinatesBase() = delete;
 };
 
-extern "C" __attribute__((const,hc)) typedef uint32_t (*ExtCFuncPtr)(unsigned int);
-
-class Coordinatess{
-    ExtCFuncPtr initializer;
+struct Coordinates : public CoordinatesBase{
+   private:
+    fptr_ui32_ui initializer;
 
    public:
-    uint32_t x = -1, y = -1, z = -1;
-    Coordinatess() = delete;
-    Coordinatess(uint32_t (*i)(unsigned int)) : initializer(i) {
+    Coordinates() = delete;
+    Coordinates(uint32_t (*i)(unsigned int)) : initializer(i) {
         x = initializer(0);
         y = initializer(1);
         z = initializer(2);
     }
 };
 
+static Coordinates blockDim(hc_get_group_size);
+static Coordinates blockIdx(hc_get_group_id);
+static Coordinates gridDim(hc_get_num_groups);
+static Coordinates threadIdx(hc_get_workitem_id);
+
 /*
-static Coordinatess blockDim(hc_get_group_size);
-static Coordinatess blockIdx(hc_get_group_id);
-static Coordinatess gridDim(hc_get_num_groups);
-static Coordinatess threadIdx(hc_get_workitem_id);
-
-
 static constexpr Coordinates(hc_get_group_size) blockDim;
 static constexpr Coordinates(hc_get_group_id) blockIdx;
 static constexpr Coordinates(hc_get_num_groups) gridDim;
 static constexpr Coordinates(hc_get_workitem_id) threadIdx;
 */
 
-static constexpr Coordinates<hc_get_group_size> blockDim;
+/*static constexpr Coordinates<hc_get_group_size> blockDim;
 static constexpr Coordinates<hc_get_group_id> blockIdx;
 static constexpr Coordinates<hc_get_num_groups> gridDim;
-static constexpr Coordinates<hc_get_workitem_id> threadIdx;
+static constexpr Coordinates<hc_get_workitem_id> threadIdx; */
 
 #define hipThreadIdx_x (hc_get_workitem_id(0))
 #define hipThreadIdx_y (hc_get_workitem_id(1))
