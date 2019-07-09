@@ -227,7 +227,6 @@ extern "C" __attribute__((const,hc)) typedef uint32_t (*fptr_ui32_ui)(unsigned i
 
 struct CoordinatesBase {
     uint32_t x = -1, y = -1, z = -1;
-    CoordinatesBase() = delete;
 };
 
 struct Coordinates : public CoordinatesBase{
