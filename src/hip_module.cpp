@@ -512,8 +512,8 @@ namespace hip_impl {
                 // This behavior shall be reverted once ROCR runtime has been fixed to
                 // address SWDEV-173477 and SWDEV-190701
 
-                //return *dptr ? hipSuccess : hipErrorNotFound;
-                return hipSuccess;                
+                return *dptr ? hipSuccess : hipErrorNotFound;
+                //return hipSuccess;                
             }
 
             hipError_t read_agent_global_from_process(hipDeviceptr_t* dptr, size_t* bytes,
