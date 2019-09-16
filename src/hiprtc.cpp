@@ -214,18 +214,22 @@ struct _hiprtcProgram {
         if (compile.rdbuf()->exited() &&
             compile.rdbuf()->status() != EXIT_SUCCESS) return false;
 
+        std::cout << "In Compile ::" << std::endl;
+        return true;
         elfio reader;
         if (!reader.load(args.back())) return false;
 
+        std::cout << "finding name" << std::endl;
         const auto it{find_if(reader.sections.begin(), reader.sections.end(),
                               [](const section* x) {
             return x->get_name() == ".kernel";
         })};
 
+        std::cout << "Reading sections" << std::endl;
         if (it == reader.sections.end()) return false;
 
         hip_impl::Bundled_code_header h{(*it)->get_data()};
-
+        std::cout << "reading bundle" << std::endl;
         if (bundles(h).empty()) return false;
 
         elf.assign(bundles(h).back().blob.cbegin(),
@@ -487,22 +491,38 @@ hiprtcResult hiprtcCompileProgram(hiprtcProgram p, int n, const char** o)
         return HIPRTC_ERROR_INTERNAL_ERROR;
     }
 
-    Unique_temporary_path tmp{};
+    //Unique_temporary_path tmp{};
+    class Path {
+        std::string p{"/home/jachaudh/project/HIP/tests/src/hiprtc/tmp"};
+
+       public:
+        std::experimental::filesystem::path path() { return std::experimental::filesystem::path{p}; }
+    };
+
+    Path tmp;
+
     experimental::filesystem::create_directory(tmp.path());
 
+    std::cout << "TMP PATH:: " << tmp.path() << std::endl;
     const auto src{p->writeTemporaryFiles(tmp.path())};
 
-    vector<string> args{hipcc, "-shared"};
+    vector<string> args{hipcc, "--genco"};
     if (n) args.insert(args.cend(), o, o + n);
 
-    handleTarget(args);
+    //handleTarget(args);
 
     args.emplace_back(src);
     args.emplace_back("-o");
     args.emplace_back(tmp.path() / "hiprtc.out");
+    for (auto i: args) {
+        std::cout << i << " ";
+    }
+    std::cout << std::endl;
 
+    std::cout << "Compiling\n";
     if (!p->compile(args, tmp.path())) return HIPRTC_ERROR_INTERNAL_ERROR;
-    if (!p->readLoweredNames()) return HIPRTC_ERROR_INTERNAL_ERROR;
+    //std::cout << "Reading Lowered Names\n";
+    //if (!p->readLoweredNames()) return HIPRTC_ERROR_INTERNAL_ERROR;
 
     p->compiled = true;
 
