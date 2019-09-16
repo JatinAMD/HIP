@@ -49,61 +49,57 @@ THE SOFTWARE.
 
 #include <iostream>
 
-const char* hiprtcGetErrorString(hiprtcResult x)
-{
+const char* hiprtcGetErrorString(hiprtcResult x) {
     switch (x) {
-    case HIPRTC_SUCCESS:
-        return "HIPRTC_SUCCESS";
-    case HIPRTC_ERROR_OUT_OF_MEMORY:
-        return "HIPRTC_ERROR_OUT_OF_MEMORY";
-    case HIPRTC_ERROR_PROGRAM_CREATION_FAILURE:
-        return "HIPRTC_ERROR_PROGRAM_CREATION_FAILURE";
-    case HIPRTC_ERROR_INVALID_INPUT:
-        return "HIPRTC_ERROR_INVALID_INPUT";
-    case HIPRTC_ERROR_INVALID_PROGRAM:
-        return "HIPRTC_ERROR_INVALID_PROGRAM";
-    case HIPRTC_ERROR_INVALID_OPTION:
-        return "HIPRTC_ERROR_INVALID_OPTION";
-    case HIPRTC_ERROR_COMPILATION:
-        return "HIPRTC_ERROR_COMPILATION";
-    case HIPRTC_ERROR_BUILTIN_OPERATION_FAILURE:
-        return "HIPRTC_ERROR_BUILTIN_OPERATION_FAILURE";
-    case HIPRTC_ERROR_NO_NAME_EXPRESSIONS_AFTER_COMPILATION:
-        return "HIPRTC_ERROR_NO_NAME_EXPRESSIONS_AFTER_COMPILATION";
-    case HIPRTC_ERROR_NO_LOWERED_NAMES_BEFORE_COMPILATION:
-        return "HIPRTC_ERROR_NO_LOWERED_NAMES_BEFORE_COMPILATION";
-    case HIPRTC_ERROR_NAME_EXPRESSION_NOT_VALID:
-        return "HIPRTC_ERROR_NAME_EXPRESSION_NOT_VALID";
-    case HIPRTC_ERROR_INTERNAL_ERROR:
-        return "HIPRTC_ERROR_INTERNAL_ERROR";
-    default: throw std::logic_error{"Invalid HIPRTC result."};
+        case HIPRTC_SUCCESS:
+            return "HIPRTC_SUCCESS";
+        case HIPRTC_ERROR_OUT_OF_MEMORY:
+            return "HIPRTC_ERROR_OUT_OF_MEMORY";
+        case HIPRTC_ERROR_PROGRAM_CREATION_FAILURE:
+            return "HIPRTC_ERROR_PROGRAM_CREATION_FAILURE";
+        case HIPRTC_ERROR_INVALID_INPUT:
+            return "HIPRTC_ERROR_INVALID_INPUT";
+        case HIPRTC_ERROR_INVALID_PROGRAM:
+            return "HIPRTC_ERROR_INVALID_PROGRAM";
+        case HIPRTC_ERROR_INVALID_OPTION:
+            return "HIPRTC_ERROR_INVALID_OPTION";
+        case HIPRTC_ERROR_COMPILATION:
+            return "HIPRTC_ERROR_COMPILATION";
+        case HIPRTC_ERROR_BUILTIN_OPERATION_FAILURE:
+            return "HIPRTC_ERROR_BUILTIN_OPERATION_FAILURE";
+        case HIPRTC_ERROR_NO_NAME_EXPRESSIONS_AFTER_COMPILATION:
+            return "HIPRTC_ERROR_NO_NAME_EXPRESSIONS_AFTER_COMPILATION";
+        case HIPRTC_ERROR_NO_LOWERED_NAMES_BEFORE_COMPILATION:
+            return "HIPRTC_ERROR_NO_LOWERED_NAMES_BEFORE_COMPILATION";
+        case HIPRTC_ERROR_NAME_EXPRESSION_NOT_VALID:
+            return "HIPRTC_ERROR_NAME_EXPRESSION_NOT_VALID";
+        case HIPRTC_ERROR_INTERNAL_ERROR:
+            return "HIPRTC_ERROR_INTERNAL_ERROR";
+        default:
+            throw std::logic_error{"Invalid HIPRTC result."};
     };
 }
 
-namespace
-{
-    struct Symbol {
-        std::string name;
-        ELFIO::Elf64_Addr value = 0;
-        ELFIO::Elf_Xword size = 0;
-        ELFIO::Elf_Half sect_idx = 0;
-        std::uint8_t bind = 0;
-        std::uint8_t type = 0;
-        std::uint8_t other = 0;
-    };
+namespace {
+struct Symbol {
+    std::string name;
+    ELFIO::Elf64_Addr value = 0;
+    ELFIO::Elf_Xword size = 0;
+    ELFIO::Elf_Half sect_idx = 0;
+    std::uint8_t bind = 0;
+    std::uint8_t type = 0;
+    std::uint8_t other = 0;
+};
 
-    inline
-    Symbol read_symbol(const ELFIO::symbol_section_accessor& section,
-                    unsigned int idx) {
-        assert(idx < section.get_symbols_num());
+inline Symbol read_symbol(const ELFIO::symbol_section_accessor& section, unsigned int idx) {
+    assert(idx < section.get_symbols_num());
 
-        Symbol r;
-        section.get_symbol(
-            idx, r.name, r.value, r.size, r.bind, r.type, r.sect_idx, r.other);
+    Symbol r;
+    section.get_symbol(idx, r.name, r.value, r.size, r.bind, r.type, r.sect_idx, r.other);
 
-        return r;
-    }
-} // Unnamed namespace.
+    return r;
+}
+}  // Unnamed namespace.
 
 struct _hiprtcProgram {
     // DATA - STATICS
@@ -121,26 +117,20 @@ struct _hiprtcProgram {
     bool compiled;
 
     // STATICS
-    static
-    hiprtcResult destroy(_hiprtcProgram* p)
-    {
+    static hiprtcResult destroy(_hiprtcProgram* p) {
         using namespace std;
 
         lock_guard<mutex> lck{mtx};
 
         const auto it{find_if(programs.cbegin(), programs.cend(),
-                              [=](const unique_ptr<_hiprtcProgram>& x) {
-            return x.get() == p;
-        })};
+                              [=](const unique_ptr<_hiprtcProgram>& x) { return x.get() == p; })};
 
         if (it == programs.cend()) return HIPRTC_ERROR_INVALID_PROGRAM;
 
         return HIPRTC_SUCCESS;
     }
 
-    static
-    std::string handleMangledName(std::string name)
-    {
+    static std::string handleMangledName(std::string name) {
         using namespace std;
 
         name = hip_impl::demangle(name.c_str());
@@ -161,21 +151,18 @@ struct _hiprtcProgram {
             } while (cnt);
 
             name.erase(++dx);
-        }
-        else name.erase(dx);
+        } else
+            name.erase(dx);
 
         return name;
     }
 
-    static
-    _hiprtcProgram* make(std::string s, std::string n,
-                         std::vector<std::pair<std::string, std::string>> h)
-    {
+    static _hiprtcProgram* make(std::string s, std::string n,
+                                std::vector<std::pair<std::string, std::string>> h) {
         using namespace std;
 
-        unique_ptr<_hiprtcProgram> tmp{new _hiprtcProgram{move(h), {}, {}, {},
-                                                          move(s), move(n), {},
-                                                          false}};
+        unique_ptr<_hiprtcProgram> tmp{
+            new _hiprtcProgram{move(h), {}, {}, {}, move(s), move(n), {}, false}};
 
         lock_guard<mutex> lck{mtx};
 
@@ -184,19 +171,16 @@ struct _hiprtcProgram {
         return programs.back().get();
     }
 
-    static
-    bool isValid(_hiprtcProgram* p) noexcept
-    {
+    static bool isValid(_hiprtcProgram* p) noexcept {
         return std::find_if(programs.cbegin(), programs.cend(),
                             [=](const std::unique_ptr<_hiprtcProgram>& x) {
-            return x.get() == p;
-        }) != programs.cend();
+                                return x.get() == p;
+                            }) != programs.cend();
     }
 
     // MANIPULATORS
     bool compile(const std::vector<std::string>& args,
-                 const std::experimental::filesystem::path& program_folder)
-    {
+                 const std::experimental::filesystem::path& program_folder) {
         using namespace ELFIO;
         using namespace redi;
         using namespace std;
@@ -211,35 +195,11 @@ struct _hiprtcProgram {
 
         compile.close();
 
-        if (compile.rdbuf()->exited() &&
-            compile.rdbuf()->status() != EXIT_SUCCESS) return false;
-
-        std::cout << "In Compile ::" << std::endl;
-        return true;
-        elfio reader;
-        if (!reader.load(args.back())) return false;
-
-        std::cout << "finding name" << std::endl;
-        const auto it{find_if(reader.sections.begin(), reader.sections.end(),
-                              [](const section* x) {
-            return x->get_name() == ".kernel";
-        })};
-
-        std::cout << "Reading sections" << std::endl;
-        if (it == reader.sections.end()) return false;
-
-        hip_impl::Bundled_code_header h{(*it)->get_data()};
-        std::cout << "reading bundle" << std::endl;
-        if (bundles(h).empty()) return false;
-
-        elf.assign(bundles(h).back().blob.cbegin(),
-                   bundles(h).back().blob.cend());
-
+        if (compile.rdbuf()->exited() && compile.rdbuf()->status() != EXIT_SUCCESS) return false;
         return true;
     }
 
-    bool readLoweredNames()
-    {
+    bool readLoweredNames() {
         using namespace ELFIO;
         using namespace hip_impl;
         using namespace std;
@@ -253,9 +213,7 @@ struct _hiprtcProgram {
         if (!reader.load(blob)) return false;
 
         const auto it{find_if(reader.sections.begin(), reader.sections.end(),
-                              [](const section* x) {
-            return x->get_type() == SHT_SYMTAB;
-        })};
+                              [](const section* x) { return x->get_type() == SHT_SYMTAB; })};
 
         ELFIO::symbol_section_accessor symbols{reader, *it};
 
@@ -267,9 +225,7 @@ struct _hiprtcProgram {
             const auto tmp{read_symbol(symbols, n)};
 
             auto it{find_if(names.cbegin(), names.cend(),
-                            [&](const pair<string, string>& x) {
-                return x.second == tmp.name;
-            })};
+                            [&](const pair<string, string>& x) { return x.second == tmp.name; })};
 
             if (it == names.cend()) {
                 const auto name{handleMangledName(tmp.name)};
@@ -277,9 +233,7 @@ struct _hiprtcProgram {
                 if (name.empty()) continue;
 
                 it = find_if(names.cbegin(), names.cend(),
-                             [&](const pair<string, string>& x) {
-                    return x.second == name;
-                });
+                             [&](const pair<string, string>& x) { return x.second == name; });
 
                 if (it == names.cend()) continue;
             }
@@ -292,13 +246,11 @@ struct _hiprtcProgram {
 
     // ACCESSORS
     std::experimental::filesystem::path writeTemporaryFiles(
-        const std::experimental::filesystem::path& programFolder) const
-    {
+        const std::experimental::filesystem::path& programFolder) const {
         using namespace std;
 
         vector<future<void>> fut{headers.size()};
-        transform(headers.cbegin(), headers.cend(), begin(fut),
-                  [&](const pair<string, string>& x) {
+        transform(headers.cbegin(), headers.cend(), begin(fut), [&](const pair<string, string>& x) {
             return async([&]() {
                 ofstream h{programFolder / x.first};
                 h.write(x.second.data(), x.second.size());
@@ -310,27 +262,21 @@ struct _hiprtcProgram {
 
         return tmp;
     }
-
-
 };
 std::vector<std::unique_ptr<_hiprtcProgram>> _hiprtcProgram::programs{};
 std::mutex _hiprtcProgram::mtx{};
 
-namespace
-{
-    inline
-    bool isValidProgram(const hiprtcProgram p)
-    {
-        if (!p) return false;
+namespace {
+inline bool isValidProgram(const hiprtcProgram p) {
+    if (!p) return false;
 
-        std::lock_guard<std::mutex> lck{_hiprtcProgram::mtx};
+    std::lock_guard<std::mutex> lck{_hiprtcProgram::mtx};
 
-        return _hiprtcProgram::isValid(p);
-    }
-} // Unnamed namespace.
+    return _hiprtcProgram::isValid(p);
+}
+}  // Unnamed namespace.
 
-hiprtcResult hiprtcAddNameExpression(hiprtcProgram p, const char* n)
-{
+hiprtcResult hiprtcAddNameExpression(hiprtcProgram p, const char* n) {
     if (!n) return HIPRTC_ERROR_INVALID_INPUT;
     if (!isValidProgram(p)) return HIPRTC_ERROR_INVALID_PROGRAM;
     if (p->compiled) return HIPRTC_ERROR_NO_NAME_EXPRESSIONS_AFTER_COMPILATION;
@@ -354,75 +300,61 @@ hiprtcResult hiprtcAddNameExpression(hiprtcProgram p, const char* n)
     return HIPRTC_SUCCESS;
 }
 
-namespace
-{
-    class Unique_temporary_path {
-        // DATA
-        std::experimental::filesystem::path path_{};
-    public:
-        // CREATORS
-        Unique_temporary_path() : path_{std::tmpnam(nullptr)}
-        {
-            while (std::experimental::filesystem::exists(path_)) {
-                path_ = std::tmpnam(nullptr);
-            }
+namespace {
+class Unique_temporary_path {
+    // DATA
+    std::experimental::filesystem::path path_{};
+
+   public:
+    // CREATORS
+    Unique_temporary_path() : path_{std::tmpnam(nullptr)} {
+        while (std::experimental::filesystem::exists(path_)) {
+            path_ = std::tmpnam(nullptr);
         }
-        Unique_temporary_path(const std::string& extension)
-            : Unique_temporary_path{}
-        {
-            path_.replace_extension(extension);
-        }
-
-        Unique_temporary_path(const Unique_temporary_path&) = default;
-        Unique_temporary_path(Unique_temporary_path&&) = default;
-
-        ~Unique_temporary_path() noexcept
-        {
-            std::experimental::filesystem::remove_all(path_);
-        }
-
-        // MANIPULATORS
-        Unique_temporary_path& operator=(
-            const Unique_temporary_path&) = default;
-        Unique_temporary_path& operator=(Unique_temporary_path&&) = default;
-
-        // ACCESSORS
-        const std::experimental::filesystem::path& path() const noexcept
-        {
-            return path_;
-        }
-    };
-} // Unnamed namespace.
-
-namespace hip_impl
-{
-    inline
-    std::string demangle(const char* x)
-    {
-        if (!x) return {};
-
-        int s{};
-        std::unique_ptr<char, decltype(std::free)*> tmp{
-            abi::__cxa_demangle(x, nullptr, nullptr, &s), std::free};
-
-        if (s != 0) return {};
-
-        return tmp.get();
     }
-} // Namespace hip_impl.
+    Unique_temporary_path(const std::string& extension) : Unique_temporary_path{} {
+        path_.replace_extension(extension);
+    }
 
-namespace
-{
-    const std::string& defaultTarget()
-    {
-        using namespace std;
+    Unique_temporary_path(const Unique_temporary_path&) = default;
+    Unique_temporary_path(Unique_temporary_path&&) = default;
 
-        static string r{"gfx900"};
-        static once_flag f{};
+    ~Unique_temporary_path() noexcept { std::experimental::filesystem::remove_all(path_); }
 
-        call_once(f, []() {
-            static hsa_agent_t a{};
-            hsa_iterate_agents([](hsa_agent_t x, void*) {
+    // MANIPULATORS
+    Unique_temporary_path& operator=(const Unique_temporary_path&) = default;
+    Unique_temporary_path& operator=(Unique_temporary_path&&) = default;
+
+    // ACCESSORS
+    const std::experimental::filesystem::path& path() const noexcept { return path_; }
+};
+}  // Unnamed namespace.
+
+namespace hip_impl {
+inline std::string demangle(const char* x) {
+    if (!x) return {};
+
+    int s{};
+    std::unique_ptr<char, decltype(std::free)*> tmp{abi::__cxa_demangle(x, nullptr, nullptr, &s),
+                                                    std::free};
+
+    if (s != 0) return {};
+
+    return tmp.get();
+}
+}  // Namespace hip_impl.
+
+namespace {
+const std::string& defaultTarget() {
+    using namespace std;
+
+    static string r{"gfx900"};
+    static once_flag f{};
+
+    call_once(f, []() {
+        static hsa_agent_t a{};
+        hsa_iterate_agents(
+            [](hsa_agent_t x, void*) {
                 hsa_device_type_t t{};
                 hsa_agent_get_info(x, HSA_AGENT_INFO_DEVICE, &t);
 
@@ -431,11 +363,14 @@ namespace
                 a = x;
 
                 return HSA_STATUS_INFO_BREAK;
-            }, nullptr);
+            },
+            nullptr);
 
-            if (!a.handle) return;
+        if (!a.handle) return;
 
-            hsa_agent_iterate_isas(a, [](hsa_isa_t x, void*){
+        hsa_agent_iterate_isas(
+            a,
+            [](hsa_isa_t x, void*) {
                 uint32_t n{};
                 hsa_isa_get_info_alt(x, HSA_ISA_INFO_NAME_LENGTH, &n);
 
@@ -447,57 +382,55 @@ namespace
                 r.erase(0, r.find("gfx"));
 
                 return HSA_STATUS_INFO_BREAK;
-            }, nullptr);
-        });
+            },
+            nullptr);
+    });
 
-        return r;
+    return r;
+}
+
+inline void handleTarget(std::vector<std::string>& args) {
+    using namespace std;
+
+    bool hasTarget{false};
+    for (auto&& x : args) {
+        const auto dx{x.find("--gpu-architecture")};
+        const auto dy{(dx == string::npos) ? x.find("-arch") : string::npos};
+
+        if (dx == dy) continue;
+
+        x.replace(0, x.find('=', min(dx, dy)), "--amdgpu-target");
+        hasTarget = true;
+
+        break;
     }
+    if (!hasTarget) args.push_back("--amdgpu-target=" + defaultTarget());
+}
+}  // Unnamed namespace.
 
-    inline
-    void handleTarget(std::vector<std::string>& args)
-    {
-        using namespace std;
-
-        bool hasTarget{false};
-        for (auto&& x : args) {
-            const auto dx{x.find("--gpu-architecture")};
-            const auto dy{(dx == string::npos) ? x.find("-arch")
-                                               : string::npos};
-
-            if (dx == dy) continue;
-
-            x.replace(0, x.find('=', min(dx, dy)), "--amdgpu-target");
-            hasTarget = true;
-
-            break;
-        }
-        if (!hasTarget) args.push_back("--amdgpu-target=" + defaultTarget());
-    }
-} // Unnamed namespace.
-
-hiprtcResult hiprtcCompileProgram(hiprtcProgram p, int n, const char** o)
-{
+hiprtcResult hiprtcCompileProgram(hiprtcProgram p, int n, const char** o) {
     using namespace std;
 
     if (n && !o) return HIPRTC_ERROR_INVALID_INPUT;
     if (!isValidProgram(p)) return HIPRTC_ERROR_INVALID_PROGRAM;
     if (p->compiled) return HIPRTC_ERROR_COMPILATION;
 
-    static const string hipcc{
-        getenv("HIP_PATH") ? (getenv("HIP_PATH") + string{"/bin/hipcc"})
-                           : "/opt/rocm/bin/hipcc"};
+    static const string hipcc{getenv("HIP_PATH") ? (getenv("HIP_PATH") + string{"/bin/hipcc"})
+                                                 : "/opt/rocm/bin/hipcc"};
 
     if (!experimental::filesystem::exists(hipcc)) {
         return HIPRTC_ERROR_INTERNAL_ERROR;
     }
 
-    //Unique_temporary_path tmp{};
-    class Path {
+    Unique_temporary_path tmp{};
+    /*class Path {
         std::string p{"/home/jachaudh/project/HIP/tests/src/hiprtc/tmp"};
 
        public:
-        std::experimental::filesystem::path path() { return std::experimental::filesystem::path{p}; }
-    };
+        std::experimental::filesystem::path path() {
+            return std::experimental::filesystem::path{p};
+        }
+    };*/
 
     Path tmp;
 
@@ -509,30 +442,26 @@ hiprtcResult hiprtcCompileProgram(hiprtcProgram p, int n, const char** o)
     vector<string> args{hipcc, "--genco"};
     if (n) args.insert(args.cend(), o, o + n);
 
-    //handleTarget(args);
+    // handleTarget(args);
 
     args.emplace_back(src);
     args.emplace_back("-o");
     args.emplace_back(tmp.path() / "hiprtc.out");
-    for (auto i: args) {
+    for (auto i : args) {
         std::cout << i << " ";
     }
     std::cout << std::endl;
 
     std::cout << "Compiling\n";
     if (!p->compile(args, tmp.path())) return HIPRTC_ERROR_INTERNAL_ERROR;
-    //std::cout << "Reading Lowered Names\n";
-    //if (!p->readLoweredNames()) return HIPRTC_ERROR_INTERNAL_ERROR;
 
     p->compiled = true;
 
     return HIPRTC_SUCCESS;
 }
 
-hiprtcResult hiprtcCreateProgram(hiprtcProgram* p, const char* src,
-                                 const char* name, int n, const char** hdrs,
-                                 const char** incs)
-{
+hiprtcResult hiprtcCreateProgram(hiprtcProgram* p, const char* src, const char* name, int n,
+                                 const char** hdrs, const char** incs) {
     using namespace std;
 
     if (!p) return HIPRTC_ERROR_INVALID_PROGRAM;
@@ -547,16 +476,13 @@ hiprtcResult hiprtcCreateProgram(hiprtcProgram* p, const char* src,
     return HIPRTC_SUCCESS;
 }
 
-hiprtcResult hiprtcDestroyProgram(hiprtcProgram* p)
-{
+hiprtcResult hiprtcDestroyProgram(hiprtcProgram* p) {
     if (!p) return HIPRTC_SUCCESS;
 
     return _hiprtcProgram::destroy(*p);
 }
 
-hiprtcResult hiprtcGetLoweredName(hiprtcProgram p, const char* n,
-                                  const char** ln)
-{
+hiprtcResult hiprtcGetLoweredName(hiprtcProgram p, const char* n, const char** ln) {
     using namespace std;
 
     if (!n || !ln) return HIPRTC_ERROR_INVALID_INPUT;
@@ -564,9 +490,7 @@ hiprtcResult hiprtcGetLoweredName(hiprtcProgram p, const char* n,
     if (!p->compiled) return HIPRTC_ERROR_NO_LOWERED_NAMES_BEFORE_COMPILATION;
 
     const auto it{find_if(p->names.cbegin(), p->names.cend(),
-                          [=](const pair<string, string>& x) {
-        return x.first == n;
-    })};
+                          [=](const pair<string, string>& x) { return x.first == n; })};
 
     if (it == p->names.cend()) return HIPRTC_ERROR_NAME_EXPRESSION_NOT_VALID;
 
@@ -575,8 +499,7 @@ hiprtcResult hiprtcGetLoweredName(hiprtcProgram p, const char* n,
     return HIPRTC_SUCCESS;
 }
 
-hiprtcResult hiprtcGetProgramLog(hiprtcProgram p, char* l)
-{
+hiprtcResult hiprtcGetProgramLog(hiprtcProgram p, char* l) {
     if (!l) return HIPRTC_ERROR_INVALID_INPUT;
     if (!isValidProgram(p)) return HIPRTC_ERROR_INVALID_PROGRAM;
     if (!p->compiled) return HIPRTC_ERROR_INVALID_PROGRAM;
@@ -587,8 +510,7 @@ hiprtcResult hiprtcGetProgramLog(hiprtcProgram p, char* l)
     return HIPRTC_SUCCESS;
 }
 
-hiprtcResult hiprtcGetProgramLogSize(hiprtcProgram p, std::size_t* sz)
-{
+hiprtcResult hiprtcGetProgramLogSize(hiprtcProgram p, std::size_t* sz) {
     if (!sz) return HIPRTC_ERROR_INVALID_INPUT;
     if (!isValidProgram(p)) return HIPRTC_ERROR_INVALID_PROGRAM;
     if (!p->compiled) return HIPRTC_ERROR_INVALID_PROGRAM;
@@ -598,8 +520,7 @@ hiprtcResult hiprtcGetProgramLogSize(hiprtcProgram p, std::size_t* sz)
     return HIPRTC_SUCCESS;
 }
 
-hiprtcResult hiprtcGetCode(hiprtcProgram p, char* c)
-{
+hiprtcResult hiprtcGetCode(hiprtcProgram p, char* c) {
     if (!c) return HIPRTC_ERROR_INVALID_INPUT;
     if (!isValidProgram(p)) return HIPRTC_ERROR_INVALID_PROGRAM;
     if (!p->compiled) return HIPRTC_ERROR_INVALID_PROGRAM;
@@ -609,8 +530,7 @@ hiprtcResult hiprtcGetCode(hiprtcProgram p, char* c)
     return HIPRTC_SUCCESS;
 }
 
-hiprtcResult hiprtcGetCodeSize(hiprtcProgram p, std::size_t* sz)
-{
+hiprtcResult hiprtcGetCodeSize(hiprtcProgram p, std::size_t* sz) {
     if (!sz) return HIPRTC_ERROR_INVALID_INPUT;
     if (!isValidProgram(p)) return HIPRTC_ERROR_INVALID_PROGRAM;
     if (!p->compiled) return HIPRTC_ERROR_INVALID_PROGRAM;
