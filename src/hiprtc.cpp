@@ -196,6 +196,14 @@ struct _hiprtcProgram {
         compile.close();
 
         if (compile.rdbuf()->exited() && compile.rdbuf()->status() != EXIT_SUCCESS) return false;
+
+        // Append Elf to code
+        auto elfName = program_folder / "hiprtc.out";
+        std::ifstream t(elfName.c_str());
+        std::string str((std::istreambuf_iterator<char>(t)), std::istreambuf_iterator<char>());
+        vector<char> tmpv(str.begin(), str.end());
+        elf = tmpv;
+
         return true;
     }
 
@@ -423,14 +431,6 @@ hiprtcResult hiprtcCompileProgram(hiprtcProgram p, int n, const char** o) {
     }
 
     Unique_temporary_path tmp{};
-    /*class Path {
-        std::string p{"/home/jachaudh/project/HIP/tests/src/hiprtc/tmp"};
-
-       public:
-        std::experimental::filesystem::path path() {
-            return std::experimental::filesystem::path{p};
-        }
-    };*/
 
     experimental::filesystem::create_directory(tmp.path());
 
@@ -445,12 +445,7 @@ hiprtcResult hiprtcCompileProgram(hiprtcProgram p, int n, const char** o) {
     args.emplace_back(src);
     args.emplace_back("-o");
     args.emplace_back(tmp.path() / "hiprtc.out");
-    for (auto i : args) {
-        std::cout << i << " ";
-    }
-    std::cout << std::endl;
 
-    std::cout << "Compiling\n";
     if (!p->compile(args, tmp.path())) return HIPRTC_ERROR_INTERNAL_ERROR;
 
     p->compiled = true;
@@ -523,7 +518,10 @@ hiprtcResult hiprtcGetCode(hiprtcProgram p, char* c) {
     if (!isValidProgram(p)) return HIPRTC_ERROR_INVALID_PROGRAM;
     if (!p->compiled) return HIPRTC_ERROR_INVALID_PROGRAM;
 
-    std::copy_n(p->elf.data(), p->elf.size(), c);
+    // std::copy_n(p->elf.data(), p->elf.size(), c);
+    p->std::ifstream t(fileName.c_str());
+    std::string str((std::istreambuf_iterator<char>(t)), std::istreambuf_iterator<char>());
+    return str;
 
     return HIPRTC_SUCCESS;
 }
