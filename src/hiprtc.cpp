@@ -432,8 +432,6 @@ hiprtcResult hiprtcCompileProgram(hiprtcProgram p, int n, const char** o) {
         }
     };*/
 
-    Path tmp;
-
     experimental::filesystem::create_directory(tmp.path());
 
     std::cout << "TMP PATH:: " << tmp.path() << std::endl;

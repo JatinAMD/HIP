@@ -35,6 +35,7 @@ THE SOFTWARE.
 #include <memory>
 #include <iostream>
 #include <iterator>
+#include <fstream>
 
 static constexpr auto NUM_THREADS{128};
 static constexpr auto NUM_BLOCKS{32};
@@ -53,6 +54,13 @@ void saxpy(float a, float* x, float* y, float* out, size_t n)
     }
 }
 )"};
+
+using namespace std;
+string readFile(const string& fileName) {
+    std::ifstream t(fileName.c_str());
+    std::string str((std::istreambuf_iterator<char>(t)), std::istreambuf_iterator<char>());
+    return str;
+}
 
 int main()
 {
@@ -91,7 +99,8 @@ int main()
     hipModule_t module;
     hipFunction_t kernel;
 
-    hipModuleLoadData(&module, code.data());
+    //hipModuleLoadData(&module, code.data());
+    hipModuleLoadData(&module, readFile("/home/jachaudh/project/HIP/tests/src/hiprtc/tmp/hiprtc.out").c_str());
     hipModuleGetFunction(&kernel, module, "saxpy");
 
     size_t n = NUM_THREADS * NUM_BLOCKS;
