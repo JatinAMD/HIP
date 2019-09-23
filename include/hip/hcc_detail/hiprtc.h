@@ -96,13 +96,14 @@ namespace hip_impl
         template<typename>
         hiprtcResult hiprtcGetTypeName(std::string*) = delete;
     #else
+        #include "bundleio/bundleio.hpp"
         template<typename T>
         inline
         hiprtcResult hiprtcGetTypeName(std::string* result)
         {
             if (!result) return HIPRTC_ERROR_INVALID_INPUT;
 
-            *result = hip_impl::demangle(typeid(T).name());
+            *result = cxxdemangle(typeid(T).name());
 
             return (result->empty()) ? HIPRTC_ERROR_INTERNAL_ERROR :
                                        HIPRTC_SUCCESS;

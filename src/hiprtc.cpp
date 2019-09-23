@@ -232,13 +232,14 @@ struct _hiprtcProgram {
     bool readLoweredNames()
     {
         BundleIO b(elfFileName);
-        if(!b.getFuncNames(lnames)) {
+        if(b.getFuncNames(lnames)) {
             return false;
         }
         this->loweredNames.clear();
         for (auto i : lnames) {
             this->loweredNames.push_back(i.first);
         }
+        return true;
     }
 
     // ACCESSORS
@@ -448,7 +449,8 @@ hiprtcResult hiprtcCompileProgram(hiprtcProgram p, int n, const char** o)
     const auto src{p->writeTemporaryFiles(tmp.path())};
 
     //vector<string> args{hipcc, "-shared"};
-    vector<string> args{hipcc, "-fPIC -shared"};
+    //vector<string> args{hipcc, "-fPIC -shared"};
+    vector<string> args{hipcc, "--genco"};
     if (n) args.insert(args.cend(), o, o + n);
 
     // TODO Add targets

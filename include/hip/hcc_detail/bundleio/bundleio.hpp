@@ -16,12 +16,15 @@ enum bundleError {
 
 class BundleIO {
     std::string bundleHeader =  "__CLANG_OFFLOAD_BUNDLE__";
+    //std::string bundleHeader =  "ELF";
     std::string fileName;
     std::string text;
     std::vector<std::string> names;
     std::vector<std::pair<std::string, std::string>> demangledPair;
     bool isValidFile() {
-        std::string tHeader = std::string(text.begin(), text.begin() + 24);
+        std::string tHeader = std::string(text.begin(), text.begin() + 24); // CLANG_OFFLOAD
+        //std::string tHeader = std::string(text.begin() + 1, text.begin() + 4); // fPIC shared
+        std::cout << "HEADER:: " << tHeader << std::endl;
         if(tHeader != bundleHeader) {
             return false;
         }
@@ -68,14 +71,31 @@ class BundleIO {
         text.assign((std::istreambuf_iterator<char>(t)),
             std::istreambuf_iterator<char>());
     }
+    void dumpNames() {
+        std::cout << "Names::\n";
+        for(auto i: demangledPair) {
+            std::cout << i.first << " - " << i.second << std::endl;
+        }
+    }
     bundleError getFuncNames(std::vector<std::pair<std::string, std::string>> &v) {
         if(!isValidFile()) {
             return INVALID_FILE;
         }
         demangle();
         v = demangledPair;
+        dumpNames();
         return SUCCESS;
     }
 };
+
+std::string cxxdemangle(const char* c) {
+    int status;
+    char* ret = abi::__cxa_demangle(c, 0, 0, &status);
+    std::string s;
+    if (ret) {
+        s = std::string(ret);
+    }
+    return s;
+}
 
 #endif
