@@ -26,6 +26,7 @@ THE SOFTWARE.
 #include "../include/hip/hcc_detail/program_state.hpp"
 
 #include "../lpl_ca/pstreams/pstream.h"
+#include "../include/hip/hcc_detail/bundleio/bundleio.hpp"
 
 #include <hsa/hsa.h>
 
@@ -113,8 +114,10 @@ struct _hiprtcProgram {
     // DATA
     std::vector<std::pair<std::string, std::string>> headers;
     std::vector<std::pair<std::string, std::string>> names;
+    std::vector<std::pair<std::string, std::string>> lnames;
     std::vector<std::string> loweredNames;
     std::vector<char> elf;
+    std::string elfFileName;
     std::string source;
     std::string name;
     std::string log;
@@ -211,93 +214,34 @@ struct _hiprtcProgram {
 
         compile.close();
 
-        /*if (compile.rdbuf()->exited() &&
-            compile.rdbuf()->status() != EXIT_SUCCESS) return false;
-
-        elfio reader;
-        if (!reader.load(args.back())) return false;
-
-        const auto it{find_if(reader.sections.begin(), reader.sections.end(),
-                              [](const section* x) {
-            return x->get_name() == ".kernel";
-        })};
-
-        if (it == reader.sections.end()) return false;
-
-        hip_impl::Bundled_code_header h{(*it)->get_data()};
-
-        if (bundles(h).empty()) return false;
-
-        elf.assign(bundles(h).back().blob.cbegin(),
-                   bundles(h).back().blob.cend()); */
         if (compile.rdbuf()->exited() && compile.rdbuf()->status() != EXIT_SUCCESS) return false;
 
-        if (bundles(h).empty()) return false;
         // Append Elf to code
         auto elfName = program_folder / "hiprtc.out";
+        elfFileName = std::string(elfName.c_str());
         std::ifstream t(elfName.c_str());
         std::string str((std::istreambuf_iterator<char>(t)), std::istreambuf_iterator<char>());
         elf.reserve(str.size());
-        std::copy_n(str.begin(), str.size(), elf.begin());
-
-        this->loweredNames.clear();
-        for (auto i : names) {
-            this->loweredNames.push_back(i.second);
+        for(auto i : str) {
+            elf.push_back(i);
         }
 
+        /*this->loweredNames.clear();
+        for (auto i : names) {
+            this->loweredNames.push_back(i.second);
+        }*/
         return true;
     }
 
     bool readLoweredNames()
     {
-        using namespace ELFIO;
-        using namespace hip_impl;
-        using namespace std;
-
-        if (names.empty()) return true;
-
-        istringstream blob{string{elf.cbegin(), elf.cend()}};
-
-        elfio reader;
-
-        if (!reader.load(blob)) return false;
-
-        const auto it{find_if(reader.sections.begin(), reader.sections.end(),
-                              [](const section* x) {
-            return x->get_type() == SHT_SYMTAB;
-        })};
-
-        ELFIO::symbol_section_accessor symbols{reader, *it};
-
-        auto n{symbols.get_symbols_num()};
-
-        if (n < loweredNames.size()) return false;
-
-        while (n--) {
-            const auto tmp{read_symbol(symbols, n)};
-
-            auto it{find_if(names.cbegin(), names.cend(),
-                            [&](const pair<string, string>& x) {
-                return x.second == tmp.name;
-            })};
-
-            if (it == names.cend()) {
-                const auto name{handleMangledName(tmp.name)};
-
-                if (name.empty()) continue;
-
-                it = find_if(names.cbegin(), names.cend(),
-                             [&](const pair<string, string>& x) {
-                    return x.second == name;
-                });
-
-                if (it == names.cend()) continue;
-            }
-
-            loweredNames[distance(names.cbegin(), it)] = tmp.name;
+        BundleIO b(elfFileName);
+        if(!b.getFuncNames(lnames))
+            return false;
+        this->loweredNames.clear();
+        for (auto i : lnames) {
+            this->loweredNames.push_back(i.first);
         }
-
-        return true;
     }
 
     // ACCESSORS
@@ -507,7 +451,7 @@ hiprtcResult hiprtcCompileProgram(hiprtcProgram p, int n, const char** o)
     const auto src{p->writeTemporaryFiles(tmp.path())};
 
     //vector<string> args{hipcc, "-shared"};
-    vector<string> args{hipcc, "--genco"};
+    vector<string> args{hipcc, "-fPIC -shared"};
     if (n) args.insert(args.cend(), o, o + n);
 
     // TODO Add targets
@@ -518,8 +462,7 @@ hiprtcResult hiprtcCompileProgram(hiprtcProgram p, int n, const char** o)
     args.emplace_back(tmp.path() / "hiprtc.out");
 
     if (!p->compile(args, tmp.path())) return HIPRTC_ERROR_INTERNAL_ERROR;
-    // Comment this atm
-    //if (!p->readLoweredNames()) return HIPRTC_ERROR_INTERNAL_ERROR;
+    if (!p->readLoweredNames()) return HIPRTC_ERROR_INTERNAL_ERROR;
 
     p->compiled = true;
 
