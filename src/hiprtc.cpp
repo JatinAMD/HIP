@@ -177,7 +177,7 @@ struct _hiprtcProgram {
         using namespace std;
 
         unique_ptr<_hiprtcProgram> tmp{new _hiprtcProgram{move(h), {}, {}, {},
-                                                          move(s), move(n), {},
+                                                          {}, {}, move(s), move(n), {},
                                                           false}};
 
         lock_guard<mutex> lck{mtx};
@@ -226,18 +226,15 @@ struct _hiprtcProgram {
             elf.push_back(i);
         }
 
-        /*this->loweredNames.clear();
-        for (auto i : names) {
-            this->loweredNames.push_back(i.second);
-        }*/
         return true;
     }
 
     bool readLoweredNames()
     {
         BundleIO b(elfFileName);
-        if(!b.getFuncNames(lnames))
+        if(!b.getFuncNames(lnames)) {
             return false;
+        }
         this->loweredNames.clear();
         for (auto i : lnames) {
             this->loweredNames.push_back(i.first);
