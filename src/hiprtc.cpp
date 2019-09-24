@@ -237,7 +237,7 @@ struct _hiprtcProgram {
         }
         this->loweredNames.clear();
         for (auto i : lnames) {
-            this->loweredNames.push_back(i.first);
+            this->loweredNames.push_back(i.second);
         }
         return true;
     }
@@ -305,7 +305,6 @@ hiprtcResult hiprtcAddNameExpression(hiprtcProgram p, const char* n)
 
     return HIPRTC_SUCCESS;
 }
-
 namespace
 {
     class Unique_temporary_path {
@@ -449,8 +448,10 @@ hiprtcResult hiprtcCompileProgram(hiprtcProgram p, int n, const char** o)
     const auto src{p->writeTemporaryFiles(tmp.path())};
 
     //vector<string> args{hipcc, "-shared"};
-    //vector<string> args{hipcc, "-fPIC -shared"};
+    //vector<string> args{hipcc, "-fPIC"};
+    //args.emplace_back("-shared");
     vector<string> args{hipcc, "--genco"};
+    args.emplace_back("--targets=gfx803");
     if (n) args.insert(args.cend(), o, o + n);
 
     // TODO Add targets
@@ -502,14 +503,30 @@ hiprtcResult hiprtcGetLoweredName(hiprtcProgram p, const char* n,
     if (!isValidProgram(p)) return HIPRTC_ERROR_INVALID_PROGRAM;
     if (!p->compiled) return HIPRTC_ERROR_NO_LOWERED_NAMES_BEFORE_COMPILATION;
 
-    const auto it{find_if(p->names.cbegin(), p->names.cend(),
+    /*const auto it{find_if(p->names.cbegin(), p->names.cend(),
                           [=](const pair<string, string>& x) {
         return x.first == n;
     })};
 
-    if (it == p->names.cend()) return HIPRTC_ERROR_NAME_EXPRESSION_NOT_VALID;
+    if (it == p->names.cend()) return HIPRTC_ERROR_NAME_EXPRESSION_NOT_VALID;*/
+    std::string kname(n);
+    std::string tname = kname;
+    for (auto i : p->names) {
+        if (i.first == n) {
+            tname = i.second;
+            *ln = i.second.c_str();
+            break;
+        }
+    }
 
-    *ln = p->loweredNames[distance(p->names.cbegin(), it)].c_str();
+    for(auto i: p->lnames) {
+        if(i.first == tname) {
+            *ln = i.second.c_str();
+            return HIPRTC_SUCCESS;
+        }
+    }
+
+    //*ln = p->loweredNames[distance(p->names.cbegin(), it)].c_str();
 
     return HIPRTC_SUCCESS;
 }

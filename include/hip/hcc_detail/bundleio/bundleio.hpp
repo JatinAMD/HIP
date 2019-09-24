@@ -56,6 +56,10 @@ class BundleIO {
             if(ret) {
                 std::string tstr;
                 for(int i = 0; ret[i] !='\0' && ret[i] !='('; i++) {
+                    if (ret[i] == ' ') {
+                        tstr.clear();
+                        continue;
+                    }
                     tstr+=ret[i];
                 }
                 free(ret);
