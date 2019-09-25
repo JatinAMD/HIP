@@ -511,7 +511,7 @@ hiprtcResult hiprtcGetLoweredName(hiprtcProgram p, const char* n,
     if (it == p->names.cend()) return HIPRTC_ERROR_NAME_EXPRESSION_NOT_VALID;*/
     std::string kname(n);
     std::string tname = kname;
-    for (auto i : p->names) {
+    for (auto &i : p->names) {
         if (i.first == n) {
             tname = i.second;
             *ln = i.second.c_str();
@@ -519,7 +519,7 @@ hiprtcResult hiprtcGetLoweredName(hiprtcProgram p, const char* n,
         }
     }
 
-    for(auto i: p->lnames) {
+    for(auto &i: p->lnames) {
         if(i.first == tname) {
             *ln = i.second.c_str();
             return HIPRTC_SUCCESS;
