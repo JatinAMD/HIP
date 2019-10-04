@@ -27,6 +27,7 @@ THE SOFTWARE.
 
 #include "../lpl_ca/pstreams/pstream.h"
 #include "hip_fatbin.h"
+#include "hip_hcc_internal.h"
 #include <hsa/hsa.h>
 
 #include <cxxabi.h>
@@ -79,6 +80,25 @@ const char* hiprtcGetErrorString(hiprtcResult x)
         return "HIPRTC_ERROR_INTERNAL_ERROR";
     default: throw std::logic_error{"Invalid HIPRTC result."};
     };
+}
+
+namespace hip_impl {
+    hsa_agent_t this_agent() {
+        GET_TLS();
+        auto ctx = ihipGetTlsDefaultCtx();
+
+        if (!ctx) throw runtime_error{"No active HIP context."};
+
+        auto device = ctx->getDevice();
+
+        if (!device) throw runtime_error{"No device available for HIP."};
+
+        ihipDevice_t* currentDevice = ihipGetDevice(device->_deviceId);
+
+        if (!currentDevice) throw runtime_error{"No active device for HIP."};
+
+        return currentDevice->_hsaAgent;
+    }
 }
 
 namespace
@@ -217,14 +237,14 @@ struct _hiprtcProgram {
 
         // Extract elf from genco file
         char agent_name[64] = {};
-        hsa_agent_get_info(this_agent(), HSA_AGENT_INFO_NAME, agent_name);
+        hsa_agent_get_info(hip_impl::this_agent(), HSA_AGENT_INFO_NAME, agent_name);
         const void* image;
-        if (auto *code_obj = __hipExtractCodeObjectFromFatBinary(image, name))
+        if (auto *code_obj = __hipExtractCodeObjectFromFatBinary(image, agent_name))
             image = code_obj;
         else 
             return false;
         auto tmp_code = code_object_blob_for_agent(image, this_agent());
-        auto content = tmp.empty() ? read_elf_file_as_string(image) : tmp_code;
+        auto content = tmp_code.empty() ? read_elf_file_as_string(image) : tmp_code;
         std::istrstream code_stream(content);
 
         elfio reader;
