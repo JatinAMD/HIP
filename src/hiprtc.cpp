@@ -22,6 +22,7 @@ THE SOFTWARE.
 
 #include "../include/hip/hiprtc.h"
 #include "../include/hip/hcc_detail/code_object_bundle.hpp"
+#include "../include/hip/hcc_detail/hsa_helpers.hpp"
 #include "../include/hip/hcc_detail/elfio/elfio.hpp"
 #include "../include/hip/hcc_detail/program_state.hpp"
 
@@ -85,6 +86,7 @@ const char* hiprtcGetErrorString(hiprtcResult x)
 
 namespace hip_impl {
     hsa_agent_t this_agent() {
+        using namespace std;
         GET_TLS();
         auto ctx = ihipGetTlsDefaultCtx();
 
@@ -117,7 +119,7 @@ namespace hip_impl {
 
         if (it == bundles(tmp).cend()) return {};
 
-        return string{it->blob.cbegin(), it->blob.cend()};
+        return std::string{it->blob.cbegin(), it->blob.cend()};
     }
 }
 
