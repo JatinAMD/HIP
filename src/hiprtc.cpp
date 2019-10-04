@@ -26,7 +26,7 @@ THE SOFTWARE.
 #include "../include/hip/hcc_detail/program_state.hpp"
 
 #include "../lpl_ca/pstreams/pstream.h"
-
+#include "hip_fatbin.h"
 #include <hsa/hsa.h>
 
 #include <cxxabi.h>
@@ -42,6 +42,7 @@ THE SOFTWARE.
 #include <memory>
 #include <mutex>
 #include <stdexcept>
+#include <strstream>
 #include <string>
 #include <unordered_map>
 #include <utility>
@@ -214,8 +215,20 @@ struct _hiprtcProgram {
         if (compile.rdbuf()->exited() &&
             compile.rdbuf()->status() != EXIT_SUCCESS) return false;
 
+        // Extract elf from genco file
+        char agent_name[64] = {};
+        hsa_agent_get_info(this_agent(), HSA_AGENT_INFO_NAME, agent_name);
+        const void* image;
+        if (auto *code_obj = __hipExtractCodeObjectFromFatBinary(image, name))
+            image = code_obj;
+        else 
+            return false;
+        auto tmp_code = code_object_blob_for_agent(image, this_agent());
+        auto content = tmp.empty() ? read_elf_file_as_string(image) : tmp_code;
+        std::istrstream code_stream(content);
+
         elfio reader;
-        if (!reader.load(args.back())) return false;
+        if (!reader.load(code_stream)) return false;
 
         const auto it{find_if(reader.sections.begin(), reader.sections.end(),
                               [](const section* x) {
@@ -462,12 +475,12 @@ namespace
 
             if (dx == dy) continue;
 
-            x.replace(0, x.find('=', min(dx, dy)), "--amdgpu-target");
+            x.replace(0, x.find('=', min(dx, dy)), "--targets");
             hasTarget = true;
 
             break;
         }
-        if (!hasTarget) args.push_back("--amdgpu-target=" + defaultTarget());
+        if (!hasTarget) args.push_back("--targets=" + defaultTarget());
     }
 } // Unnamed namespace.
 
@@ -492,7 +505,7 @@ hiprtcResult hiprtcCompileProgram(hiprtcProgram p, int n, const char** o)
 
     const auto src{p->writeTemporaryFiles(tmp.path())};
 
-    vector<string> args{hipcc, "-shared"};
+    vector<string> args{hipcc, "--genco"};
     if (n) args.insert(args.cend(), o, o + n);
 
     handleTarget(args);
