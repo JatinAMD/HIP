@@ -48,6 +48,7 @@ THE SOFTWARE.
 #include <unordered_map>
 #include <utility>
 #include <vector>
+#include <stdexcept>
 
 #include <iostream>
 
@@ -98,6 +99,25 @@ namespace hip_impl {
         if (!currentDevice) throw runtime_error{"No active device for HIP."};
 
         return currentDevice->_hsaAgent;
+    }
+    std::string code_object_blob_for_agent(const void* maybe_bundled_code, hsa_agent_t agent) {
+
+        if (!maybe_bundled_code) return {};
+
+        Bundled_code_header tmp{maybe_bundled_code};
+
+        if (!valid(tmp)) return {};
+
+        const auto agent_isa = isa(agent);
+
+        const auto it = find_if(bundles(tmp).cbegin(), bundles(tmp).cend(), [=](const Bundled_code& x) {
+            return agent_isa == triple_to_hsa_isa(x.triple);
+            ;
+        });
+
+        if (it == bundles(tmp).cend()) return {};
+
+        return string{it->blob.cbegin(), it->blob.cend()};
     }
 }
 
@@ -243,7 +263,7 @@ struct _hiprtcProgram {
             image = code_obj;
         else 
             return false;
-        auto tmp_code = code_object_blob_for_agent(image, this_agent());
+        auto tmp_code = code_object_blob_for_agent(image, hip_impl::this_agent());
         auto content = tmp_code.empty() ? read_elf_file_as_string(image) : tmp_code;
         std::istrstream code_stream(content);
 
