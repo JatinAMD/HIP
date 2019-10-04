@@ -110,7 +110,7 @@ namespace hip_impl {
 
         if (!valid(tmp)) return {};
 
-        const auto agent_isa = isa(agent);
+        auto agent_isa = isa(agent);
 
         const auto it = find_if(bundles(tmp).cbegin(), bundles(tmp).cend(), [=](const Bundled_code& x) {
             return agent_isa == triple_to_hsa_isa(x.triple);
@@ -121,6 +121,25 @@ namespace hip_impl {
 
         return std::string{it->blob.cbegin(), it->blob.cend()};
     }
+    string read_elf_file_as_string(const void* file) {
+    // Precondition: file points to an ELF image that was BITWISE loaded
+    //               into process accessible memory, and not one loaded by
+    //               the loader. This is because in the latter case
+    //               alignment may differ, which will break the size
+    //               computation.
+    //               the image is Elf64, and matches endianness i.e. it is
+    //               Little Endian.
+    using namespace ELFIO;
+    if (!file) return {};
+
+    auto h = static_cast<const ELFIO::Elf64_Ehdr*>(file);
+    auto s = static_cast<const char*>(file);
+    // This assumes the common case of SHT being the last part of the ELF.
+    auto sz =
+        sizeof(ELFIO::Elf64_Ehdr) + h->e_shoff + h->e_shentsize * h->e_shnum;
+
+    return std::string{s, s + sz};
+}
 }
 
 namespace
@@ -265,7 +284,7 @@ struct _hiprtcProgram {
             image = code_obj;
         else 
             return false;
-        auto tmp_code = code_object_blob_for_agent(image, hip_impl::this_agent());
+        auto tmp_code = hip_impl::code_object_blob_for_agent(image, hip_impl::this_agent());
         auto content = tmp_code.empty() ? read_elf_file_as_string(image) : tmp_code;
         std::istrstream code_stream(content);
 
