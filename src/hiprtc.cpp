@@ -116,6 +116,7 @@ struct _hiprtcProgram {
     std::vector<std::pair<std::string, std::string>> names;
     std::vector<std::string> loweredNames;
     std::vector<char> elf;
+    std::vector<char> code;
     std::string source;
     std::string name;
     std::string log;
@@ -231,6 +232,23 @@ struct _hiprtcProgram {
 
         elf.assign(bundles(h).back().blob.cbegin(),
                    bundles(h).back().blob.cend());
+
+        hip_impl::copy_kernel_section_to_fat_binary(args.back(), program_folder / "tmpCodeFile");
+
+        std::ifstream OutFile(Out, std::ios::binary);
+        OutFile.unsetf(std::ios::skipws);
+        std::streampos fileSize;
+        OutFile.seekg(0, std::ios::end);
+        fileSize = OutFile.tellg();
+        OutFile.seekg(0, std::ios::beg);
+
+        // reserve capacity
+        std::vector<char> vec;
+        vec.reserve(fileSize);
+
+        // read the data:
+        vec.insert(vec.begin(), std::istream_iterator<char>(OutFile), std::istream_iterator<char>());
+        code = vec;
 
         return true;
     }
@@ -586,38 +604,7 @@ hiprtcResult hiprtcGetCode(hiprtcProgram p, char* c)
     if (!p->compiled) return HIPRTC_ERROR_INVALID_PROGRAM;
 
     // Add lpl here
-    // std::copy_n(p->elf.data(), p->elf.size(), c);
-    Unique_temporary_path tmp{};
-    experimental::filesystem::create_directory(tmp.path());
-
-    //Basically create two files in a temp folder and pass it to lpl and hope for the best
-    std::string elfData(p->elf.begin(), p->elf.end());
-    auto In = (tmp.path() / "elf");
-    auto Out = (tmp.path() / "fatbin");
-
-    std::ofstream InFile(In, std::ios::out|std::ios::binary);
-    std::copy(elfData.cbegin(), elfData.cend(),
-        std::ostream_iterator<unsigned char>(InFile));
-
-    copy_kernel_section_to_fat_binary(In, Out);
-
-    std::ifstream OutFile(Out, std::ios::binary);
-    OutFile.unsetf(std::ios::skipws);
-    std::streampos fileSize;
-    OutFile.seekg(0, std::ios::end);
-    fileSize = file.tellg();
-    OutFile.seekg(0, std::ios::beg);
-
-    // reserve capacity
-    std::vector<char> vec;
-    vec.reserve(fileSize);
-
-    // read the data:
-    vec.insert(vec.begin(),
-               std::istream_iterator<char>(OutFile),
-               std::istream_iterator<char>());
-
-    std::copy_n(vec.data(), vec.size(), c);
+    std::copy_n(p->code.data(), p->code.size(), c);
 
     return HIPRTC_SUCCESS;
 }
