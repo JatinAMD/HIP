@@ -26,6 +26,7 @@ THE SOFTWARE.
 #include "../include/hip/hcc_detail/program_state.hpp"
 
 #include "../lpl_ca/pstreams/pstream.h"
+#include "../lpl_ca/lpl.hpp"
 
 #include <hsa/hsa.h>
 
@@ -584,7 +585,39 @@ hiprtcResult hiprtcGetCode(hiprtcProgram p, char* c)
     if (!isValidProgram(p)) return HIPRTC_ERROR_INVALID_PROGRAM;
     if (!p->compiled) return HIPRTC_ERROR_INVALID_PROGRAM;
 
-    std::copy_n(p->elf.data(), p->elf.size(), c);
+    // Add lpl here
+    // std::copy_n(p->elf.data(), p->elf.size(), c);
+    Unique_temporary_path tmp{};
+    experimental::filesystem::create_directory(tmp.path());
+
+    //Basically create two files in a temp folder and pass it to lpl and hope for the best
+    std::string elfData(p->elf.begin(), p->elf.end());
+    auto In = (tmp.path() / "elf");
+    auto Out = (tmp.path() / "fatbin");
+
+    std::ofstream InFile(In, std::ios::out|std::ios::binary);
+    std::copy(elfData.cbegin(), elfData.cend(),
+        std::ostream_iterator<unsigned char>(InFile));
+
+    copy_kernel_section_to_fat_binary(In, Out);
+
+    std::ifstream OutFile(Out, std::ios::binary);
+    OutFile.unsetf(std::ios::skipws);
+    std::streampos fileSize;
+    OutFile.seekg(0, std::ios::end);
+    fileSize = file.tellg();
+    OutFile.seekg(0, std::ios::beg);
+
+    // reserve capacity
+    std::vector<char> vec;
+    vec.reserve(fileSize);
+
+    // read the data:
+    vec.insert(vec.begin(),
+               std::istream_iterator<char>(OutFile),
+               std::istream_iterator<char>());
+
+    std::copy_n(vec.data(), vec.size(), c);
 
     return HIPRTC_SUCCESS;
 }
