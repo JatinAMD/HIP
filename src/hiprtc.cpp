@@ -175,7 +175,7 @@ struct _hiprtcProgram {
     {
         using namespace std;
 
-        unique_ptr<_hiprtcProgram> tmp{new _hiprtcProgram{move(h), {}, {}, {},
+        unique_ptr<_hiprtcProgram> tmp{new _hiprtcProgram{move(h), {}, {}, {}, {},
                                                           move(s), move(n), {},
                                                           false}};
 
@@ -233,10 +233,10 @@ struct _hiprtcProgram {
         elf.assign(bundles(h).back().blob.cbegin(),
                    bundles(h).back().blob.cend());
 
-        hip_impl::copy_kernel_section_to_fat_binary(args.back(), program_folder / "tmpCodeFile");
+        /*hip_impl::copy_kernel_section_to_fat_binary(args.back(), program_folder / "tmpCodeFile");
 
-        std::ifstream OutFile(Out, std::ios::binary);
-        OutFile.unsetf(std::ios::skipws);
+        std::ifstream OutFile(program_folder / "tmpCodeFile", std::ios::binary | std::ios::out);
+        //OutFile.unsetf(std::ios::skipws);
         std::streampos fileSize;
         OutFile.seekg(0, std::ios::end);
         fileSize = OutFile.tellg();
@@ -249,7 +249,30 @@ struct _hiprtcProgram {
         // read the data:
         vec.insert(vec.begin(), std::istream_iterator<char>(OutFile), std::istream_iterator<char>());
         code = vec;
+        OutFile.close();*/
+        return true;
+    }
+    bool gencoCompile(const std::vector<std::string>& args) {
+        using namespace ELFIO;
+        using namespace redi;
+        using namespace std;
 
+        ipstream compile{args.front(), args, pstreambuf::pstderr};
+
+        constexpr const auto tmp_size{1024u};
+        char tmp[tmp_size]{};
+        while (!compile.eof()) {
+            log.append(tmp, tmp + compile.readsome(tmp, tmp_size));
+        }
+
+        compile.close();
+
+        if (compile.rdbuf()->exited() && compile.rdbuf()->status() != EXIT_SUCCESS) return false;
+        
+        // Open file and copy in the code
+        ifstream f(args.back(), ios::in | ios::binary);
+        std::vector<char> v(std::istreambuf_iterator<char>{f}, {});
+        code = v;
         return true;
     }
 
@@ -511,7 +534,8 @@ hiprtcResult hiprtcCompileProgram(hiprtcProgram p, int n, const char** o)
 
     const auto src{p->writeTemporaryFiles(tmp.path())};
 
-    vector<string> args{hipcc, "-shared"};
+    vector<string> args{hipcc, "-fPIC"};
+    args.emplace_back("-shared");
     if (n) args.insert(args.cend(), o, o + n);
 
     handleTarget(args);
@@ -522,6 +546,12 @@ hiprtcResult hiprtcCompileProgram(hiprtcProgram p, int n, const char** o)
 
     if (!p->compile(args, tmp.path())) return HIPRTC_ERROR_INTERNAL_ERROR;
     if (!p->readLoweredNames()) return HIPRTC_ERROR_INTERNAL_ERROR;
+    vector<string> gargs{hipcc, "--genco"};
+    gargs.emplace_back("--targets=gfx803");
+    gargs.emplace_back(src);
+    gargs.emplace_back("-o");
+    gargs.emplace_back(tmp.path() / "hiprtcg.out");
+    if(!p->gencoCompile(gargs)) return HIPRTC_ERROR_INTERNAL_ERROR;
 
     p->compiled = true;
 
@@ -615,7 +645,7 @@ hiprtcResult hiprtcGetCodeSize(hiprtcProgram p, std::size_t* sz)
     if (!isValidProgram(p)) return HIPRTC_ERROR_INVALID_PROGRAM;
     if (!p->compiled) return HIPRTC_ERROR_INVALID_PROGRAM;
 
-    *sz = p->elf.size();
+    *sz = p->code.size();
 
     return HIPRTC_SUCCESS;
 }
