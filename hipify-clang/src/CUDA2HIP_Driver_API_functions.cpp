@@ -27,7 +27,7 @@ const std::map<llvm::StringRef, hipCounter> CUDA_DRIVER_FUNCTION_MAP{
   // 5.2. Error Handling
   // no analogue
   // NOTE: cudaGetErrorName and cuGetErrorName have different signatures
-  {"cuGetErrorName",                                       {"hipGetErrorName_",                                        "", CONV_ERROR, API_DRIVER, HIP_UNSUPPORTED}},
+  {"cuGetErrorName",                                       {"hipGetErrorName_",                                        "", CONV_ERROR, API_DRIVER}},
   // no analogue
   // NOTE: cudaGetErrorString and cuGetErrorString have different signatures
   {"cuGetErrorString",                                     {"hipGetErrorString_",                                      "", CONV_ERROR, API_DRIVER, HIP_UNSUPPORTED}},

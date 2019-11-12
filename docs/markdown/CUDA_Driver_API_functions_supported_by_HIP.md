@@ -748,7 +748,7 @@
 
 |   **CUDA**                                                |   **HIP**                     |**CUDA version\***|
 |-----------------------------------------------------------|-------------------------------|------------------|
-| `cuGetErrorName`                                          |                               |
+| `cuGetErrorName`                                          | `hipGetErrorName_`            |
 | `cuGetErrorString`                                        |                               |
 
 ## **3. Initialization**

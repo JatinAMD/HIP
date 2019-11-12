@@ -116,6 +116,7 @@ sub clearStats {
 
 sub simpleSubstitutions {
     $ft{'error'} += s/\bcudaGetErrorName\b/hipGetErrorName/g;
+    $ft{'error'} += s/\bcuGetErrorName\b/hipGetErrorName_/g;
     $ft{'error'} += s/\bcudaGetErrorString\b/hipGetErrorString/g;
     $ft{'error'} += s/\bcudaGetLastError\b/hipGetLastError/g;
     $ft{'error'} += s/\bcudaPeekAtLastError\b/hipPeekAtLastError/g;

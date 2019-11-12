@@ -51,6 +51,12 @@ const char* hipGetErrorName(hipError_t hip_error) {
     return ihipErrorString(hip_error);
 }
 
+
+hipError_t hipGetErrorName_(hipError_t hip_error, const char** str) {
+    *str = ihipErrorString(hip_error);
+    return hipSuccess;
+}
+
 const char* hipGetErrorString(hipError_t hip_error) {
     HIP_INIT_API(hipGetErrorString, hip_error);
 
