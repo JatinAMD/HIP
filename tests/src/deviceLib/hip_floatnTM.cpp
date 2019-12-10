@@ -36,14 +36,19 @@ inline constexpr int count() {
     return sizeof(T) / sizeof(M);
 }
 
-inline int getRandomNumber(int min = INT_MIN, int max = INT_MAX) {
+inline int getRandomNumber(int min = 10, int max = 100) {
     static std::random_device dev;
     static std::mt19937 rng(dev());
     static std::uniform_int_distribution<std::mt19937::result_type> gen(min, max);
     return gen(rng);
 }
 
-inline float getRandomFloat() { return float(getRandomNumber() / getRandomNumber()); }
+inline float getRandomFloat() {
+    float a = getRandomNumber();
+    int b = getRandomNumber();
+    if (b) return a / b;
+    return a;
+}
 
 template <typename T, typename B>
 void fillMatrix(T* a, int size) {
@@ -60,7 +65,7 @@ void fillMatrix(T* a, int size) {
 
 // Test operations
 template <typename T, typename B>
-void testOperations(T* a, T* b, int size) {
+void testOperations(T& a, T& b) {
     a.x += b.x;
     a.x++;
     b.x++;
@@ -69,10 +74,9 @@ void testOperations(T* a, T* b, int size) {
         a.x = b.y;
     }
     if constexpr (count<T, B>() >= 3) {
-        b.x /= a.x;
+        if (a.x > 0) b.x /= a.x;
         a.x *= b.z;
         a.y--;
-        b.y = -a.x;
     }
     if constexpr (count<T, B>() >= 4) {
         b.w = a.x;
@@ -115,11 +119,8 @@ __global__ void gMatAcc(T* a, T* b, int size) {
 
 // Main function that tests type
 // T = what you want to test
-// A = pack of 4 i.e. float4 int4
-// B = pack of 3 i.e. float3 int3
-// C = pack of 2 i.e. float2 int2
 // D = pack of 1 i.e. float1 int1
-template <typename T, typename A, typename B, typename C, typename D>
+template <typename T, typename D>
 void testType(int msize) {
     T *fa, *fb, *fc;
     fa = new T[msize];
@@ -130,11 +131,13 @@ void testType(int msize) {
 
     constexpr int c = count<T, D>();
 
-    if (c <= 0 || c >= 4) failed("Invalid Size\n");
+    if (c <= 0 || c >= 5) {
+        failed("Invalid Size\n");
+    }
 
-    fillMatrix<T,D>(fa, msize);
-    deepCopy(fb, fa, msize);
-    testOperations<T,D>(fa, fb, msize);
+    fillMatrix<T, D>(fa, msize);
+    dcopy(fb, fa, msize);
+    for (int i = 0; i < msize; i++) testOperations<T, D>(fa[i], fb[i]);
 
     hipMalloc(&d_fa, sizeof(T) * msize);
     hipMalloc(&d_fb, sizeof(T) * msize);
@@ -166,8 +169,77 @@ void testType(int msize) {
 
 int main() {
     const int msize = 100;
-    // Floats
-    testType<double2, double4, double3, double2, double1>(msize);
-    
+    // double
+    testType<double1, double1>(msize);
+    testType<double2, double1>(msize);
+    testType<double3, double1>(msize);
+    testType<double4, double1>(msize);
+
+    // floats
+    testType<float1, float1>(msize);
+    testType<float2, float1>(msize);
+    testType<float3, float1>(msize);
+    testType<float4, float1>(msize);
+
+    // ints
+    testType<int1, int1>(msize);
+    testType<int2, int1>(msize);
+    testType<int3, int1>(msize);
+    testType<int4, int1>(msize);
+
+    // chars
+    testType<char1, char1>(msize);
+    testType<char2, char1>(msize);
+    testType<char3, char1>(msize);
+    testType<char4, char1>(msize);
+
+    // long
+    testType<long1, long1>(msize);
+    testType<long2, long1>(msize);
+    testType<long3, long1>(msize);
+    testType<long4, long1>(msize);
+
+    // longlong
+    testType<longlong1, longlong1>(msize);
+    testType<longlong2, longlong1>(msize);
+    testType<longlong3, longlong1>(msize);
+    testType<longlong4, longlong1>(msize);
+
+    // short
+    testType<short1, short1>(msize);
+    testType<short2, short1>(msize);
+    testType<short3, short1>(msize);
+    testType<short4, short1>(msize);
+
+    // uints
+    testType<uint1, uint1>(msize);
+    testType<uint2, uint1>(msize);
+    testType<uint3, uint1>(msize);
+    testType<uint4, uint1>(msize);
+
+    // uchars
+    testType<uchar1, uchar1>(msize);
+    testType<uchar2, uchar1>(msize);
+    testType<uchar3, uchar1>(msize);
+    testType<uchar4, uchar1>(msize);
+
+    // ulong
+    testType<ulong1, ulong1>(msize);
+    testType<ulong2, ulong1>(msize);
+    testType<ulong3, ulong1>(msize);
+    testType<ulong4, ulong1>(msize);
+
+    // ulonglong
+    testType<ulonglong1, ulonglong1>(msize);
+    testType<ulonglong2, ulonglong1>(msize);
+    testType<ulonglong3, ulonglong1>(msize);
+    testType<ulonglong4, ulonglong1>(msize);
+
+    // ushort
+    testType<ushort1, ushort1>(msize);
+    testType<ushort2, ushort1>(msize);
+    testType<ushort3, ushort1>(msize);
+    testType<ushort4, ushort1>(msize);
+
     passed();
 }
