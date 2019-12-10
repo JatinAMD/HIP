@@ -36,73 +36,6 @@ inline constexpr int count() {
     return sizeof(T) / sizeof(M);
 }
 
-template <typename N>
-void cpuJitter2(N& b) {
-    b.x++;
-    b.y++;
-    b.x += b.y;
-}
-
-template <typename M, typename N>
-void cpuJitter3(M& b) {
-    cpuJitter2<N>(*reinterpret_cast<N*>(&b));
-    b.z++;
-    b.x = b.y + b.z;
-}
-
-template <typename T, typename M, typename N>
-void cpuJitter4(T& b) {
-    cpuJitter3<M, N>(*reinterpret_cast<M*>(&b));
-    b.w++;
-    b.x = b.w + b.y + b.z;
-}
-
-// Rotate x,y,z,w by 1
-template <typename N>
-void cpuRotate2(N& a, N& b) {
-    b.x = a.y;
-    b.y = a.x;
-    cpuJitter2<N>(b);
-}
-
-template <typename M, typename N>
-void cpuRotate3(M& a, M& b) {
-    cpuRotate2<N>(*reinterpret_cast<N*>(&a), *reinterpret_cast<N*>(&b));
-    b.y = a.z;
-    b.z = a.x;
-    cpuJitter3<M, N>(b);
-}
-
-template <typename T, typename M, typename N>
-void cpuRotate4(T& a, T& b) {
-    cpuRotate3<M, N>(*reinterpret_cast<M*>(&a), *reinterpret_cast<M*>(&b));
-    b.y = a.z;
-    b.z = a.w;
-    b.w = a.x;
-    cpuJitter4<T, M, N>(b);
-}
-
-template <typename T>
-void cpuRotate2(T* a, T* b, int size) {
-    for (int i = 0; i < size; i++) {
-        cpuRotate2<T>(a[i], b[i]);
-    }
-}
-
-template <typename T, typename M>
-void cpuRotate3(T* a, T* b, int size) {
-    for (int i = 0; i < size; i++) {
-        cpuRotate3<T, M>(a[i], b[i]);
-    }
-}
-
-template <typename T, typename M, typename N>
-void cpuRotate4(T* a, T* b, int size) {
-    for (int i = 0; i < size; i++) {
-        cpuRotate4<T, M, N>(a[i], b[i]);
-    }
-}
-
 inline int getRandomNumber(int min = INT_MIN, int max = INT_MAX) {
     static std::random_device dev;
     static std::mt19937 rng(dev());
@@ -110,38 +43,40 @@ inline int getRandomNumber(int min = INT_MIN, int max = INT_MAX) {
     return gen(rng);
 }
 
-inline float getRandomFloat() { return getRandomNumber() / getRandomNumber(); }
+inline float getRandomFloat() { return float(getRandomNumber() / getRandomNumber()); }
 
-template <typename T>
-void fillMatrix2(T* a, int size) {
+template <typename T, typename B>
+void fillMatrix(T* a, int size) {
     for (int i = 0; i < size; i++) {
         T t;
         t.x = getRandomFloat();
-        t.y = getRandomFloat();
+        if constexpr (count<T, B>() >= 2) t.y = getRandomFloat();
+        if constexpr (count<T, B>() >= 3) t.z = getRandomFloat();
+        if constexpr (count<T, B>() >= 4) t.w = getRandomFloat();
+
         a[i] = t;
     }
 }
 
-template <typename T>
-void fillMatrix3(T* a, int size) {
-    for (int i = 0; i < size; i++) {
-        T t;
-        t.x = getRandomFloat();
-        t.y = getRandomFloat();
-        t.z = getRandomFloat();
-        a[i] = t;
+// Test operations
+template <typename T, typename B>
+void testOperations(T* a, T* b, int size) {
+    a.x += b.x;
+    a.x++;
+    b.x++;
+    if constexpr (count<T, B>() >= 2) {
+        a.y = b.x;
+        a.x = b.y;
     }
-}
-
-template <typename T>
-void fillMatrix4(T* a, int size) {
-    for (int i = 0; i < size; i++) {
-        T t;
-        t.x = getRandomFloat();
-        t.y = getRandomFloat();
-        t.z = getRandomFloat();
-        t.w = getRandomFloat();
-        a[i] = t;
+    if constexpr (count<T, B>() >= 3) {
+        b.x /= a.x;
+        a.x *= b.z;
+        a.y--;
+        b.y = -a.x;
+    }
+    if constexpr (count<T, B>() >= 4) {
+        b.w = a.x;
+        a.w += (-b.y);
     }
 }
 
@@ -180,11 +115,11 @@ __global__ void gMatAcc(T* a, T* b, int size) {
 
 // Main function that tests type
 // T = what you want to test
-// S = its primitive i.e. if T = float2 S = Float
 // A = pack of 4 i.e. float4 int4
 // B = pack of 3 i.e. float3 int3
 // C = pack of 2 i.e. float2 int2
-template <typename T, typename S, typename A, typename B, typename C>
+// D = pack of 1 i.e. float1 int1
+template <typename T, typename A, typename B, typename C, typename D>
 void testType(int msize) {
     T *fa, *fb, *fc;
     fa = new T[msize];
@@ -193,20 +128,14 @@ void testType(int msize) {
 
     T *d_fa, *d_fb;
 
-    constexpr int c = count<T, S>();
+    constexpr int c = count<T, D>();
 
-    if constexpr (c == 4) {
-        fillMatrix4<T>(fa, msize);
-        cpuRotate4<A, B, C>(fa, fb, msize);
-    } else if constexpr (c == 3) {
-        fillMatrix3<T>(fa, msize);
-        cpuRotate3<B, C>(fa, fb, msize);
-    } else if constexpr (c == 2) {
-        fillMatrix2<T>(fa, msize);
-        cpuRotate2<C>(fa, fb, msize);
-    } else {
-        failed("Invalid Size\n");
-    }
+    if (c <= 0 || c >= 4) failed("Invalid Size\n");
+
+    fillMatrix<T,D>(fa, msize);
+    deepCopy(fb, fa, msize);
+    testOperations<T,D>(fa, fb, msize);
+
     hipMalloc(&d_fa, sizeof(T) * msize);
     hipMalloc(&d_fb, sizeof(T) * msize);
 
@@ -238,21 +167,7 @@ void testType(int msize) {
 int main() {
     const int msize = 100;
     // Floats
-    testType<float2, float, float4, float3, float2>(msize);
-    testType<float3, float, float4, float3, float2>(msize);
-    testType<float4, float, float4, float3, float2>(msize);
-    // ints
-    testType<int2, int, int4, int3, int2>(msize);
-    testType<int3, int, int4, int3, int2>(msize);
-    testType<int4, int, int4, int3, int2>(msize);
-    //chars
-    testType<char2, char, char4, char3, char2>(msize);
-    testType<char3, char, char4, char3, char2>(msize);
-    testType<char4, char, char4, char3, char2>(msize);
-    //double
-    testType<double2, double, double4, double3, double2>(msize);
-    testType<double3, double, double4, double3, double2>(msize);
-    testType<double4, double, double4, double3, double2>(msize);
+    testType<double2, double4, double3, double2, double1>(msize);
     
     passed();
 }
