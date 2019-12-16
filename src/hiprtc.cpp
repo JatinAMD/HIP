@@ -35,7 +35,7 @@ THE SOFTWARE.
 #include <cassert>
 #include <cstdio>
 #include <cstdlib>
-#include <experimental/filesystem>
+#include <filesystem>
 #include <fstream>
 #include <future>
 #include <iterator>
@@ -48,6 +48,7 @@ THE SOFTWARE.
 #include <vector>
 
 #include <iostream>
+
 
 const char* hiprtcGetErrorString(hiprtcResult x)
 {
@@ -195,7 +196,7 @@ struct _hiprtcProgram {
 
     // MANIPULATORS
     bool compile(const std::vector<std::string>& args,
-                 const std::experimental::filesystem::path& program_folder)
+                 const std::filesystem::path& program_folder)
     {
         using namespace ELFIO;
         using namespace redi;
@@ -287,8 +288,8 @@ struct _hiprtcProgram {
     }
 
     // ACCESSORS
-    std::experimental::filesystem::path writeTemporaryFiles(
-        const std::experimental::filesystem::path& programFolder) const
+    std::filesystem::path writeTemporaryFiles(
+        const std::filesystem::path& programFolder) const
     {
         using namespace std;
 
@@ -354,12 +355,12 @@ namespace
 {
     class Unique_temporary_path {
         // DATA
-        std::experimental::filesystem::path path_{};
+        std::filesystem::path path_{};
     public:
         // CREATORS
         Unique_temporary_path() : path_{std::tmpnam(nullptr)}
         {
-            while (std::experimental::filesystem::exists(path_)) {
+            while (std::filesystem::exists(path_)) {
                 path_ = std::tmpnam(nullptr);
             }
         }
@@ -374,7 +375,7 @@ namespace
 
         ~Unique_temporary_path() noexcept
         {
-            std::experimental::filesystem::remove_all(path_);
+            std::filesystem::remove_all(path_);
         }
 
         // MANIPULATORS
@@ -383,7 +384,7 @@ namespace
         Unique_temporary_path& operator=(Unique_temporary_path&&) = default;
 
         // ACCESSORS
-        const std::experimental::filesystem::path& path() const noexcept
+        const std::filesystem::path& path() const noexcept
         {
             return path_;
         }
@@ -483,12 +484,12 @@ hiprtcResult hiprtcCompileProgram(hiprtcProgram p, int n, const char** o)
         getenv("HIP_PATH") ? (getenv("HIP_PATH") + string{"/bin/hipcc"})
                            : "/opt/rocm/bin/hipcc"};
 
-    if (!experimental::filesystem::exists(hipcc)) {
+    if (!filesystem::exists(hipcc)) {
         return HIPRTC_ERROR_INTERNAL_ERROR;
     }
 
     Unique_temporary_path tmp{};
-    experimental::filesystem::create_directory(tmp.path());
+    filesystem::create_directory(tmp.path());
 
     const auto src{p->writeTemporaryFiles(tmp.path())};
 
