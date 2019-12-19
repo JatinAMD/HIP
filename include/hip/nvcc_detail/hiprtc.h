@@ -19,14 +19,12 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 */
-#pragma once
 
-#include <hip/hip_common.h>
+#ifndef HIP_INCLUDE_HIP_NVCC_DETAIL_NVRTC_H
+#define HIP_INCLUDE_HIP_NVCC_DETAIL_NVRTC_H
 
-#if defined(__HIP_PLATFORM_HCC__) && !defined(__HIP_PLATFORM_NVCC__)
-    #include <hip/hcc_detail/hiprtc.h>
-#elif defined(__HIP_PLATFORM_NVCC__) && !defined(__HIP_PLATFORM_HCC__)
-    #include <hip/nvcc_detail/hiprtc.h>
-#else
-    #error("Must define exactly one of __HIP_PLATFORM_HCC__ or __HIP_PLATFORM_NVCC__");
+#include <cuda.h>
+#include <nvrtc.h>
+#include <hip/nvcc_detail/hip_runtime.h>
+
 #endif
