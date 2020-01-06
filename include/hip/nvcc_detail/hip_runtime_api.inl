@@ -69,9 +69,9 @@ HIP_NVCC_INLINE hipError_t hipCUDAErrorTohipError(cudaError_t cuError) {
         case cudaErrorMissingConfiguration:
             return hipErrorMissingConfiguration;
         case cudaErrorMemoryAllocation:
-            return hipErrorMemoryAllocation;
+            return hipErrorOutOfMemory;
         case cudaErrorInitializationError:
-            return hipErrorInitializationError;
+            return hipErrorNotInitialized;
         case cudaErrorLaunchFailure:
             return hipErrorLaunchFailure;
         case cudaErrorPriorLaunchFailure:
@@ -93,7 +93,7 @@ HIP_NVCC_INLINE hipError_t hipCUDAErrorTohipError(cudaError_t cuError) {
         case cudaErrorUnknown:
             return hipErrorUnknown;
         case cudaErrorInvalidResourceHandle:
-            return hipErrorInvalidResourceHandle;
+            return hipErrorInvalidHandle;
         case cudaErrorNotReady:
             return hipErrorNotReady;
         case cudaErrorNoDevice:
@@ -107,7 +107,7 @@ HIP_NVCC_INLINE hipError_t hipCUDAErrorTohipError(cudaError_t cuError) {
         case cudaErrorHostMemoryNotRegistered:
             return hipErrorHostMemoryNotRegistered;
         case cudaErrorMapBufferObjectFailed:
-            return hipErrorMapBufferObjectFailed;
+            return hipErrorMapFailed;
         case cudaErrorAssert:
             return hipErrorAssert;
         case cudaErrorNotSupported:
@@ -122,7 +122,7 @@ HIP_NVCC_INLINE hipError_t hipCUResultTohipError(CUresult cuError) {  // TODO Po
         case CUDA_SUCCESS:
             return hipSuccess;
         case CUDA_ERROR_OUT_OF_MEMORY:
-            return hipErrorMemoryAllocation;
+            return hipErrorOutOfMemory;
         case CUDA_ERROR_INVALID_VALUE:
             return hipErrorInvalidValue;
         case CUDA_ERROR_INVALID_DEVICE:
@@ -135,6 +135,10 @@ HIP_NVCC_INLINE hipError_t hipCUResultTohipError(CUresult cuError) {  // TODO Po
             return hipErrorInvalidContext;
         case CUDA_ERROR_NOT_INITIALIZED:
             return hipErrorNotInitialized;
+        case CUDA_ERROR_INVALID_HANDLE:
+            return hipErrorInvalidHandle;
+        case CUDA_ERROR_MAP_FAILED:
+            return hipErrorMapFailed;
         default:
             return hipErrorUnknown;  // Note - translated error.
     }
@@ -145,13 +149,13 @@ HIP_NVCC_INLINE cudaError_t hipErrorToCudaError(hipError_t hError) {
     switch (hError) {
         case hipSuccess:
             return cudaSuccess;
-        case hipErrorMemoryAllocation:
+        case hipErrorOutOfMemory:
             return cudaErrorMemoryAllocation;
         case hipErrorLaunchOutOfResources:
             return cudaErrorLaunchOutOfResources;
         case hipErrorInvalidValue:
             return cudaErrorInvalidValue;
-        case hipErrorInvalidResourceHandle:
+        case hipErrorInvalidHandle:
             return cudaErrorInvalidResourceHandle;
         case hipErrorInvalidDevice:
             return cudaErrorInvalidDevice;
@@ -159,7 +163,7 @@ HIP_NVCC_INLINE cudaError_t hipErrorToCudaError(hipError_t hError) {
             return cudaErrorInvalidMemcpyDirection;
         case hipErrorInvalidDevicePointer:
             return cudaErrorInvalidDevicePointer;
-        case hipErrorInitializationError:
+        case hipErrorNotInitialized:
             return cudaErrorInitializationError;
         case hipErrorNoDevice:
             return cudaErrorNoDevice;
@@ -414,8 +418,19 @@ HIP_NVCC_INLINE hipError_t hipMemcpy(void* dst, const void* src, size_t sizeByte
         cudaMemcpy(dst, src, sizeBytes, hipMemcpyKindToCudaMemcpyKind(copyKind)));
 }
 
-HIP_NVCC_INLINE hipError_t hipMemcpyAsync(void* dst, const void* src, size_t sizeBytes,
-                                          hipMemcpyKind copyKind, hipStream_t stream __dparm(0)) {
+HIP_NVCC_INLINE hipError_t hipMemcpyWithStream(void* dst, const void* src, size_t sizeBytes,
+                                               hipMemcpyKind copyKind, hipStream_t stream) {
+    cudaError_t error =
+        cudaMemcpyAsync(dst, src, sizeBytes, hipMemcpyKindToCudaMemcpyKind(copyKind), stream);
+
+    if (error != cudaSuccess) return hipCUDAErrorTohipError(error);
+
+    return hipCUDAErrorTohipError(cudaStreamSynchronize(stream));
+}
+
+HIP_NVCC_INLINE static hipError_t hipMemcpyAsync(void* dst, const void* src, size_t sizeBytes,
+                                                 hipMemcpyKind copyKind,
+                                                 hipStream_t stream __dparm(0)) {
     return hipCUDAErrorTohipError(
         cudaMemcpyAsync(dst, src, sizeBytes, hipMemcpyKindToCudaMemcpyKind(copyKind), stream));
 }
@@ -1179,6 +1194,12 @@ HIP_NVCC_INLINE hipError_t hipBindTexture(size_t* offset, struct textureReferenc
                                           const void* devPtr, const hipChannelFormatDesc* desc,
                                           size_t size __dparm(UINT_MAX)) {
     return hipCUDAErrorTohipError(cudaBindTexture(offset, tex, devPtr, desc, size));
+}
+HIP_NVCC_INLINE hipError_t hipBindTexture2D(size_t* offset, struct textureReference* tex,
+                                            const void* devPtr, const hipChannelFormatDesc* desc,
+                                            size_t width, size_t height, size_t pitch) {
+    return hipCUDAErrorTohipError(
+        cudaBindTexture2D(offset, tex, devPtr, desc, width, height, pitch));
 }
 
 HIP_NVCC_INLINE hipChannelFormatDesc hipCreateChannelDesc(int x, int y, int z, int w,
