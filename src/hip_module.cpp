@@ -1421,22 +1421,22 @@ hipError_t ihipOccupancyMaxActiveBlocksPerMultiprocessor(
 }
 
 hipError_t hipOccupancyMaxActiveBlocksPerMultiprocessor(
-   uint32_t* numBlocks, hipFunction_t f, uint32_t blockSize, size_t dynSharedMemPerBlk)
+   int* numBlocks, const void* f, int blockSize, size_t dynSharedMemPerBlk)
 {
     HIP_INIT_API(hipOccupancyMaxActiveBlocksPerMultiprocessor, numBlocks, f, blockSize, dynSharedMemPerBlk);
 
     return ihipLogStatus(ihipOccupancyMaxActiveBlocksPerMultiprocessor(
-        tls, numBlocks, f, blockSize, dynSharedMemPerBlk));
+        tls, numBlocks, static_cast<hipFunction_t>(f), blockSize, dynSharedMemPerBlk));
 }
 
 hipError_t hipOccupancyMaxActiveBlocksPerMultiprocessorWithFlags(
-   uint32_t* numBlocks, hipFunction_t f, uint32_t  blockSize, size_t dynSharedMemPerBlk,
+   int* numBlocks, const void* f, int blockSize, size_t dynSharedMemPerBlk,
    unsigned int flags)
 {
     HIP_INIT_API(hipOccupancyMaxActiveBlocksPerMultiprocessorWithFlags, numBlocks, f, blockSize, dynSharedMemPerBlk, flags);
 
     return ihipLogStatus(ihipOccupancyMaxActiveBlocksPerMultiprocessor(
-        tls, numBlocks, f, blockSize, dynSharedMemPerBlk));
+        tls, numBlocks, static_cast<hipFunction_t>(f), blockSize, dynSharedMemPerBlk));
 }
 
 hipError_t hipLaunchKernel(
