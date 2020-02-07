@@ -660,9 +660,8 @@ HIP_NVCC_INLINE hipError_t hipMemcpyWithStream(void* dst, const void* src, size_
     return hipCUDAErrorTohipError(cudaStreamSynchronize(stream));
 }
 
-HIP_NVCC_INLINE static hipError_t hipMemcpyAsync(void* dst, const void* src, size_t sizeBytes,
-                                                 hipMemcpyKind copyKind,
-                                                 hipStream_t stream __dparm(0)) {
+HIP_NVCC_INLINE hipError_t hipMemcpyAsync(void* dst, const void* src, size_t sizeBytes,
+                                          hipMemcpyKind copyKind, hipStream_t stream __dparm(0)) {
     return hipCUDAErrorTohipError(
         cudaMemcpyAsync(dst, src, sizeBytes, hipMemcpyKindToCudaMemcpyKind(copyKind), stream));
 }
