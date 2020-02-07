@@ -327,6 +327,8 @@ hipError_t hipMemcpyDtoDAsync(hipDeviceptr_t dst, hipDeviceptr_t src, size_t siz
 
 hipError_t hipMemcpy(void* dst, const void* src, size_t sizeBytes, hipMemcpyKind copyKind);
 
+hipError_t hipMemcpyWithStream(void* dst, const void* src, size_t sizeBytes, hipMemcpyKind copyKind,
+                               hipStream_t stream);
 
 hipError_t hipMemcpyAsync(void* dst, const void* src, size_t sizeBytes, hipMemcpyKind copyKind,
                           hipStream_t stream);
@@ -591,6 +593,10 @@ hipError_t hipFuncSetCacheConfig(const void* func, hipFuncCache_t cacheConfig);
 
 hipError_t hipBindTexture(size_t* offset, struct textureReference* tex, const void* devPtr,
                           const hipChannelFormatDesc* desc, size_t size);
+
+hipError_t hipBindTexture2D(size_t* offset, struct textureReference* tex, const void* devPtr,
+                            const hipChannelFormatDesc* desc, size_t width, size_t height,
+                            size_t pitch);
 
 hipChannelFormatDesc hipCreateChannelDesc(int x, int y, int z, int w, hipChannelFormatKind f);
 
