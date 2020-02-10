@@ -24,6 +24,7 @@ THE SOFTWARE.
 #define HIP_INCLUDE_HIP_HCC_DETAIL_SURFACE_FUNCTIONS_H
 
 #include <hip/hcc_detail/hip_surface_types.h>
+#include <ockl.h>
 
 #define __SURFACE_FUNCTIONS_DECL__ static inline __device__
 template <class T>
@@ -39,7 +40,9 @@ __SURFACE_FUNCTIONS_DECL__ void surf2Dread(T* data, hipSurfaceObject_t surfObj, 
             *data = 0;
         }
     } else {
-        *data = *(dataPtr + y * width + xOffset);
+        // *data = *(dataPtr + y * width + xOffset);
+        int2 loc{y, xOffset};
+        *data = __ockl_image_load_2D(dataPtr, loc);
     }
 }
 
