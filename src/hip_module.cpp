@@ -1172,7 +1172,7 @@ hsa_executable_symbol_t find_kernel_by_name(hsa_executable_t executable, const c
 }
 
 
-string read_elf_file_as_string(const void* file) {
+string read_elf_file_as_string(const void* file, long strsz = -1) {
     // Precondition: file points to an ELF image that was BITWISE loaded
     //               into process accessible memory, and not one loaded by
     //               the loader. This is because in the latter case
@@ -1181,12 +1181,17 @@ string read_elf_file_as_string(const void* file) {
     //               the image is Elf64, and matches endianness i.e. it is
     //               Little Endian.
     if (!file) return {};
-
+    if(strsz == 0) { std::cout << "HIPDEBUG:: Invalid Size" << std::endl; return {}; }
     auto h = static_cast<const ELFIO::Elf64_Ehdr*>(file);
     auto s = static_cast<const char*>(file);
     // This assumes the common case of SHT being the last part of the ELF.
     auto sz =
         sizeof(ELFIO::Elf64_Ehdr) + h->e_shoff + h->e_shentsize * h->e_shnum;
+    if((strsz != -1) && (sz > strsz)) {
+        std::cout << "HIPDEBUG:: size > passed size, Calc size:: "
+                  << sz << "Passed Size:: " << strsz << std::endl;
+        return {};
+    }
 
     return string{s, s + sz};
 }
@@ -1426,7 +1431,7 @@ hipError_t hipFuncGetAttribute(int* value, hipFunction_attribute attrib, hipFunc
     return ihipLogStatus(retVal);
 }
 
-hipError_t ihipModuleLoadData(TlsData *tls, hipModule_t* module, const void* image) {
+hipError_t ihipModuleLoadData(TlsData *tls, hipModule_t* module, const void* image, long strsz = -1) {
     using namespace hip_impl;
 
     if (!module) return hipErrorInvalidValue;
@@ -1447,7 +1452,7 @@ hipError_t ihipModuleLoadData(TlsData *tls, hipModule_t* module, const void* ima
 
     auto tmp = code_object_blob_for_agent(image, this_agent());
 
-    auto content = tmp.empty() ? read_elf_file_as_string(image) : tmp;
+    auto content = tmp.empty() ? read_elf_file_as_string(image, strsz) : tmp;
 
     (*module)->executable = get_program_state().load_executable(
                                             content.data(), content.size(), (*module)->executable,
@@ -1464,6 +1469,11 @@ hipError_t ihipModuleLoadData(TlsData *tls, hipModule_t* module, const void* ima
 hipError_t hipModuleLoadData(hipModule_t* module, const void* image) {
     HIP_INIT_API(hipModuleLoadData, module, image);
     return ihipLogStatus(ihipModuleLoadData(tls,module,image));
+}
+
+hipError_t MIhipModuleLoadData(hipModule_t* module, const void* image, long size) {
+    HIP_INIT_API(hipModuleLoadData, module, image);
+    return ihipLogStatus(ihipModuleLoadData(tls,module,image, size));
 }
 
 hipError_t hipModuleLoad(hipModule_t* module, const char* fname) {

@@ -2848,6 +2848,8 @@ hipError_t hipModuleGetTexRef(textureReference** texRef, hipModule_t hmod, const
  */
 hipError_t hipModuleLoadData(hipModule_t* module, const void* image);
 
+hipError_t MIhipModuleLoadData(hipModule_t* module, const void* image, long size);
+
 /**
  * @brief builds module from code object which resides in host memory. Image is pointer to that
  * location. Options are not used. hipModuleLoadData is called.
