@@ -36,7 +36,9 @@ THE SOFTWARE.
 
 static constexpr const char gpu_program[]{
 R"(
+#if __HIPCC__ 
 #include <hip/hip_runtime.h>
+#endif
 
 __device__ int V1; // set from host code
 static __global__ void f1(int *result) { *result = V1 + 10; }
@@ -53,6 +55,13 @@ __global__ void f3(int *result) { *result = sizeof(T); }
 int main()
 {
     using namespace std;
+
+    HIPCHECK(hipInit(0));
+
+    hipDevice_t deviced;
+    hipCtx_t context;
+    HIPCHECK(hipDeviceGet(&deviced, 0));
+    HIPCHECK(hipCtxCreate(&context, 0, deviced));
 
     hiprtcProgram prog;
     hiprtcCreateProgram(&prog, gpu_program, "prog.cu", 0, nullptr, nullptr);
@@ -83,13 +92,15 @@ int main()
     hipDeviceProp_t props;
     int device = 0;
     hipGetDeviceProperties(&props, device);
+#if defined(__HIP_PLATFORM_HCC__) || defined(__HIP_PLATFORM_VDI__)
     std::string gfxName = "gfx" + std::to_string(props.gcnArch);
+#else
+    std::string gfxName = "compute_30";
+#endif
     std::string sarg = "--gpu-architecture=" + gfxName;
-    const char* options[] = {
-            sarg.c_str()
-    };
+    const char* options[] = {sarg.c_str(), "--std=c++14"};
 
-    hiprtcResult compileResult = hiprtcCompileProgram(prog, 1, options);
+    hiprtcResult compileResult = hiprtcCompileProgram(prog, 2, options);
 
     // Obtain compilation log from the program.
     size_t logSize;
@@ -115,7 +126,7 @@ int main()
 
     hipDeviceptr_t dResult;
     int hResult = 0;
-    hipMalloc(&dResult, sizeof(hResult));
+    hipMemAlloc(&dResult, sizeof(hResult));
     hipMemcpyHtoD(dResult, &hResult, sizeof(hResult));
 
     for (decltype(variable_name_vec.size()) i = 0; i != variable_name_vec.size(); ++i) {
@@ -152,7 +163,7 @@ int main()
         if (expected_result[i] != hResult) { failed("Validation failed."); }
     }
 
-    hipFree(dResult);
+    hipMemFree(dResult);
     hipModuleUnload(module);
 
     hiprtcDestroyProgram(&prog);

@@ -784,6 +784,10 @@ hipError_t hipMallocManaged(void** devPtr, size_t size, unsigned int flags) {
     return ihipLogStatus(hip_status);
 }
 
+hipError_t hipMemAlloc(hipDeviceptr_t* ptr, size_t size) { return hipMalloc(ptr, size); }
+
+hipError_t hipMemFree(hipDeviceptr_t ptr) { return hipFree(ptr); }
+
 // Deprecated function:
 hipError_t hipMallocHost(void** ptr, size_t sizeBytes) { return hipHostMalloc(ptr, sizeBytes, 0); }
 

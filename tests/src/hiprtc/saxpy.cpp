@@ -42,8 +42,9 @@ static constexpr auto NUM_BLOCKS{32};
 
 static constexpr auto saxpy{
 R"(
+#if __HIPCC__
 #include <hip/hip_runtime.h>
-
+#endif
 extern "C"
 __global__
 void saxpy(float a, float* x, float* y, float* out, size_t n)
@@ -59,24 +60,33 @@ int main()
 {
     using namespace std;
 
+    HIPCHECK(hipInit(0));
+
+    hipDevice_t deviced;
+    hipCtx_t context;
+    HIPCHECK(hipDeviceGet(&deviced, 0));
+    HIPCHECK(hipCtxCreate(&context, 0, deviced));
+
     hiprtcProgram prog;
-    hiprtcCreateProgram(&prog,      // prog
-                        saxpy,      // buffer
-                        "saxpy.cu", // name
-                        0,          // numHeaders
-                        nullptr,    // headers
-                        nullptr);   // includeNames
+    hiprtcCreateProgram(&prog,       // prog
+                        saxpy,       // buffer
+                        "saxpy.cu",  // name
+                        0,           // numHeaders
+                        nullptr,     // headers
+                        nullptr);    // includeNames
 
     hipDeviceProp_t props;
     int device = 0;
     hipGetDeviceProperties(&props, device);
+#if defined(__HIP_PLATFORM_HCC__) || defined(__HIP_PLATFORM_VDI__)
     std::string gfxName = "gfx" + std::to_string(props.gcnArch);
+#else
+    std::string gfxName = "compute_30";
+#endif
     std::string sarg = "--gpu-architecture=" + gfxName;
-    const char* options[] = {
-        sarg.c_str()
-    };
+    const char* options[] = {sarg.c_str()};
 
-    hiprtcResult compileResult{hiprtcCompileProgram(prog, 1, options)};
+    hiprtcResult compileResult{hiprtcCompileProgram(prog, 0, options)};
 
     size_t logSize;
     hiprtcGetProgramLogSize(prog, &logSize);
@@ -118,9 +128,9 @@ int main()
     }
 
     hipDeviceptr_t dX, dY, dOut;
-    hipMalloc(&dX, bufferSize);
-    hipMalloc(&dY, bufferSize);
-    hipMalloc(&dOut, bufferSize);
+    hipMemAlloc(&dX, bufferSize);
+    hipMemAlloc(&dY, bufferSize);
+    hipMemAlloc(&dOut, bufferSize);
     hipMemcpyHtoD(dX, hX.get(), bufferSize);
     hipMemcpyHtoD(dY, hY.get(), bufferSize);
 
@@ -143,14 +153,17 @@ int main()
     hipMemcpyDtoH(hOut.get(), dOut, bufferSize);
 
     for (size_t i = 0; i < n; ++i) {
-       if (a * hX[i] + hY[i] != hOut[i]) { failed("Validation failed."); }
+        if (std::fabs(a * hX[i] + hY[i] - hOut[i]) >= 0.02f) {
+            std::cout << i << " - " << (a * hX[i] + hY[i]) << " - " << hOut[i] << std::endl;
+            failed("Validation failed.");
+        }
     }
 
-    hipFree(dX);
-    hipFree(dY);
-    hipFree(dOut);
+    hipMemFree(dX);
+    hipMemFree(dY);
+    hipMemFree(dOut);
 
     hipModuleUnload(module);
-
+    HIPCHECK(hipCtxDestroy(context));
     passed();
 }

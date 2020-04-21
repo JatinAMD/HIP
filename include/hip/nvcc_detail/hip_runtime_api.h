@@ -724,6 +724,14 @@ inline static hipError_t hipMallocPitch(void** ptr, size_t* pitch, size_t width,
     return hipCUDAErrorTohipError(cudaMallocPitch(ptr, pitch, width, height));
 }
 
+inline static hipError_t hipMemAlloc(hipDeviceptr_t* p, size_t size) {
+    return hipCUResultTohipError(cuMemAlloc(p, size));
+}
+
+inline static hipError_t hipMemFree(hipDeviceptr_t p) {
+    return hipCUResultTohipError(cuMemFree(p));
+}
+
 inline static hipError_t hipMemAllocPitch(hipDeviceptr_t* dptr,size_t* pitch,size_t widthInBytes,size_t height,unsigned int elementSizeBytes){
     return hipCUResultTohipError(cuMemAllocPitch(dptr,pitch,widthInBytes,height,elementSizeBytes));
 }

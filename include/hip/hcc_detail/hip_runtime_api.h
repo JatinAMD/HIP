@@ -1264,6 +1264,10 @@ hipError_t hipHostUnregister(void* hostPtr);
 
 hipError_t hipMallocPitch(void** ptr, size_t* pitch, size_t width, size_t height);
 
+hipError_t hipMemAlloc(hipDeviceptr_t* ptr, size_t size);
+
+hipError_t hipMemFree(hipDeviceptr_t ptr);
+
 /**
  *  Allocates at least width (in bytes) * height bytes of linear memory
  *  Padding may occur to ensure alighnment requirements are met for the given row

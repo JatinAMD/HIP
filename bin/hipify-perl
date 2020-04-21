@@ -198,7 +198,7 @@ sub simpleSubstitutions {
     $ft{'memory'} += s/\bcuIpcCloseMemHandle\b/hipIpcCloseMemHandle/g;
     $ft{'memory'} += s/\bcuIpcGetMemHandle\b/hipIpcGetMemHandle/g;
     $ft{'memory'} += s/\bcuIpcOpenMemHandle\b/hipIpcOpenMemHandle/g;
-    $ft{'memory'} += s/\bcuMemAlloc\b/hipMalloc/g;
+    $ft{'memory'} += s/\bcuMemAlloc\b/hipMemAlloc/g;
     $ft{'memory'} += s/\bcuMemAllocHost\b/hipHostMalloc/g;
     $ft{'memory'} += s/\bcuMemAllocHost_v2\b/hipHostMalloc/g;
     $ft{'memory'} += s/\bcuMemAllocManaged\b/hipMallocManaged/g;

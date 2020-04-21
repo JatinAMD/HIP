@@ -20,7 +20,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 */
 /* HIT_START
- * BUILD: %t %s ../../test_common.cpp LINK_OPTIONS hiprtc stdc++fs EXCLUDE_HIP_PLATFORM nvcc
+ * BUILD: %t %s ../../test_common.cpp LINK_OPTIONS hiprtc stdc++fs 
  * TEST: %t
  * HIT_END
  */

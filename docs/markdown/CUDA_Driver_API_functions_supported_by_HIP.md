@@ -916,7 +916,7 @@
 | `cuIpcGetMemHandle`                                       | `hipIpcGetMemHandle`          |
 | `cuIpcOpenEventHandle`                                    |                               |
 | `cuIpcOpenMemHandle`                                      | `hipIpcOpenMemHandle`         |
-| `cuMemAlloc`                                              | `hipMalloc`                   |
+| `cuMemAlloc`                                              | `hipMemAlloc`                 |
 | `cuMemAllocHost`                                          | `hipHostMalloc`               |
 | `cuMemAllocManaged`                                       | `hipMallocManaged`            |
 | `cuMemAllocPitch`                                         | `hipMemAllocPitch`            |
