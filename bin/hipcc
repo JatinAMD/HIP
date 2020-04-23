@@ -358,7 +358,7 @@ if(defined $HIP_COMPILER and $HIP_COMPILER eq "hcc") {
     $coFormatv3 = 0;
 }
 my $funcSupp = 0;      # enable function support
-
+my $noinline = 0;      # nvcc no inlining support
 my @options = ();
 my @inputs  = ();
 
@@ -492,6 +492,13 @@ foreach $arg (@ARGV)
     if($arg =~ m/^-O/)
     {
         $optArg = $arg;
+    }
+
+    ## Adding no inling for NVCC
+    if($trimarg eq '--no-inline')
+    {
+        $noinline = 1;
+        $swallowArg = 1;
     }
 
     ## process linker response file for hip-clang
@@ -712,6 +719,7 @@ if ($coFormatv3 and $HIP_PLATFORM eq 'hcc') {
 
 if ($hasCXX and $HIP_PLATFORM eq 'nvcc') {
     $HIPCXXFLAGS .= " -x cu";
+    $HIPCXXFLAGS .= " -Xcompiler -fno-inline-functions";
 }
 if ($hasCU and $HIP_PLATFORM eq 'hcc') {
     $HIPCXXFLAGS .= " -x c++";
