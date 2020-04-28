@@ -1709,12 +1709,40 @@ hipError_t hipLaunchKernel(
     const void* func_addr, dim3 numBlocks, dim3 dimBlocks, void** args,
     size_t sharedMemBytes, hipStream_t stream)
 {
-   HIP_INIT_API(hipLaunchKernel,func_addr,numBlocks,dimBlocks,args,sharedMemBytes,stream);
+    HIP_INIT_API(hipLaunchKernel,func_addr,numBlocks,dimBlocks,args,sharedMemBytes,stream);
 
-   hipFunction_t kd = hip_impl::get_program_state().kernel_descriptor((std::uintptr_t)func_addr,
+    hipFunction_t kd = hip_impl::get_program_state().kernel_descriptor((std::uintptr_t)func_addr,
                                                            hip_impl::target_agent(stream));
 
-   return hipModuleLaunchKernel(kd, numBlocks.x, numBlocks.y, numBlocks.z,
+    return hipModuleLaunchKernel(kd, numBlocks.x, numBlocks.y, numBlocks.z,
                           dimBlocks.x, dimBlocks.y, dimBlocks.z, sharedMemBytes,
                           stream, args, nullptr);
+}
+
+hipError_t hipExtLaunchKernel(const void* function,
+                             dim3 numBlocks,
+                             dim3 dimBlocks,
+                             void** args,
+                             size_t sharedMemBytes,
+                             hipStream_t stream,
+                             hipEvent_t startEvent,
+                             hipEvent_t stopEvent,
+                             int flags)
+{
+    HIP_INIT_API(hipExtLaunchKernel,function,numBlocks,dimBlocks,args,sharedMemBytes,stream,startEvent,stopEvent,flags);
+
+    hipFunction_t kd = hip_impl::get_program_state().kernel_descriptor((std::uintptr_t)function,
+                                                           hip_impl::target_agent(stream));
+
+    size_t globalWorkSizeX = (size_t)numBlocks.x * (size_t)dimBlocks.x;
+    size_t globalWorkSizeY = (size_t)numBlocks.y * (size_t)dimBlocks.y;
+    size_t globalWorkSizeZ = (size_t)numBlocks.z * (size_t)dimBlocks.z;
+    if(globalWorkSizeX > UINT32_MAX || globalWorkSizeY > UINT32_MAX || globalWorkSizeZ > UINT32_MAX)
+    {
+        return hipErrorInvalidConfiguration;
+    }
+
+    return ihipLogStatus(ihipModuleLaunchKernel(tls,
+        kd, globalWorkSizeX, globalWorkSizeY, globalWorkSizeZ, dimBlocks.x, dimBlocks.y,
+        dimBlocks.z, sharedMemBytes, stream, args, nullptr, startEvent, stopEvent, flags));
 }

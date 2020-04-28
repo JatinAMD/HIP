@@ -392,11 +392,63 @@ extern void ihipPostLaunchKernel(const char* kernelName, hipStream_t stream, gri
 
 typedef int hipLaunchParm;
 
-#define hipLaunchKernelGGL(kernelName, numblocks, numthreads, memperblock, streamId, ...)          \
+template <std::size_t n, typename... Ts,
+          typename std::enable_if<n == sizeof...(Ts)>::type* = nullptr>
+void pArgs(const std::tuple<Ts...>&, char* _vargs, size_t , size_t*) {}
+
+template <std::size_t n, typename... Ts,
+          typename std::enable_if<n != sizeof...(Ts)>::type* = nullptr>
+void pArgs(const std::tuple<Ts...>& formals, char* _vargs, size_t offset, size_t* _offset) {
+    using T = typename std::tuple_element<n, std::tuple<Ts...>>::type;
+
+    static_assert(!std::is_reference<T>{},
+                  "A __global__ function cannot have a reference as one of its "
+                  "arguments.");
+#if defined(HIP_STRICT)
+    static_assert(std::is_trivially_copyable<T>{},
+                  "Only TriviallyCopyable types can be arguments to a __global__ "
+                  "function");
+#endif
+    auto tval = std::get<n>(formals);
+    memcpy(_vargs + offset, &tval, sizeof(tval));
+    _offset[n] = offset;
+    offset += sizeof(tval);
+    return pArgs<n + 1>(formals, _vargs, offset, _offset);
+}
+
+template <typename... Formals, typename... Actuals>
+void pArgs(void (*kernel)(Formals...), std::tuple<Actuals...>(actuals), char* _vargs, size_t* _offset) {
+    static_assert(sizeof...(Formals) == sizeof...(Actuals), "Argument Count Mismatch");
+    std::tuple<Formals...> to_formals{std::move(actuals)};
+    return pArgs<0>(to_formals, _vargs, 0, _offset);
+}
+
+template <typename... Args, typename F = void (*)(Args...)>
+inline void hipLaunchKernelGGL(F kernel, const dim3& numBlocks, const dim3& dimBlocks,
+                               std::uint32_t sharedMemBytes, hipStream_t stream,
+                               Args... args) {
+    constexpr size_t count = sizeof...(Args);
+    auto tup = std::tuple<Args...>{std::move(args)...};
+    constexpr size_t size = sizeof(tup);
+    char _pa[size];         // Allocate bytes to store arguments
+    size_t _offset[count];  // Offset for each inserted value
+    void* _Args[count];
+
+    pArgs(kernel, tup, _pa, _offset);
+
+    for (int i = 0; i < count; i++) {
+        _Args[i] = (_pa + _offset[i]);
+    }
+
+    auto k = reinterpret_cast<void*>(kernel);
+    hipLaunchKernel(k, numBlocks, dimBlocks, _Args, sharedMemBytes, stream);
+}
+
+/* #define hipLaunchKernelGGL(kernelName, numblocks, numthreads, memperblock, streamId, ...)          \
     do {                                                                                           \
         kernelName<<<(numblocks), (numthreads), (memperblock), (streamId)>>>(__VA_ARGS__);         \
     } while (0)
-
+*/
 #include <hip/hip_runtime_api.h>
 
 #pragma push_macro("__DEVICE__")
