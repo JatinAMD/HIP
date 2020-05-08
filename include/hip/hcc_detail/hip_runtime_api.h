@@ -3354,6 +3354,17 @@ hipError_t hipLaunchKernel(const void* function_address,
                            hipStream_t stream __dparm(0));
 
 #if __HIP_ROCclr__
+//TODO: Move this to hip_ext.h
+hipError_t hipExtLaunchKernel(const void* function_address,
+                             dim3 numBlocks,
+                             dim3 dimBlocks,
+                             void** args,
+                             size_t sharedMemBytes,
+                             hipStream_t stream,
+                             hipEvent_t startEvent,
+                             hipEvent_t stopEvent,
+                             int flags);
+
 hipError_t hipBindTexture(
     size_t* offset,
     const textureReference* tex,
