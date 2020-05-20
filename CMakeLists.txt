@@ -189,6 +189,8 @@ if(CMAKE_INSTALL_PREFIX_INITIALIZED_TO_DEFAULT)
     endif()
 endif()
 
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/LIB")
+
 # Set default install path as "/opt/rocm/hip", can override the path from cmake build.
 set(CPACK_INSTALL_PREFIX ${HIP_DEFAULT_INSTALL_PREFIX} CACHE PATH "Package Installation path for HIP")
 
@@ -622,8 +624,26 @@ endif()
 # Testing steps
 #############################
 # Target: test
-set(HIP_ROOT_DIR ${CMAKE_INSTALL_PREFIX})
+set(HIP_ROOT_DIR ${CMAKE_CURRENT_BINARY_DIR})
 set(HIP_SRC_PATH ${CMAKE_CURRENT_SOURCE_DIR})
+message ( "Setting HIP ROOT DIR: ${HIP_ROOT_DIR}" )
+if(HIP_PLATFORM STREQUAL "hcc")
+    add_custom_command(TARGET hip_hcc POST_BUILD COMMAND
+        ${CMAKE_COMMAND} -E copy ${CMAKE_CURRENT_BINARY_DIR}/libhip_hcc.so.${HIP_VERSION} ${CMAKE_CURRENT_BINARY_DIR}/lib/libhip_hcc.so.${HIP_VERSION})
+    add_custom_command(TARGET hip_hcc POST_BUILD COMMAND
+        ${CMAKE_COMMAND} -E create_symlink ${CMAKE_CURRENT_BINARY_DIR}/lib/libhip_hcc.so.${HIP_VERSION} ${CMAKE_CURRENT_BINARY_DIR}/lib/libhip_hcc.so.${HIP_VERSION_MAJOR})
+    add_custom_command(TARGET hip_hcc POST_BUILD COMMAND
+        ${CMAKE_COMMAND} -E create_symlink ${CMAKE_CURRENT_BINARY_DIR}/lib/libhip_hcc.so.${HIP_VERSION} ${CMAKE_CURRENT_BINARY_DIR}/lib/libhip_hcc.so)
+    add_custom_command(TARGET hip_hcc_static POST_BUILD COMMAND
+        ${CMAKE_COMMAND} -E create_symlink ${CMAKE_CURRENT_BINARY_DIR}/libhip_hcc_static.a ${CMAKE_CURRENT_BINARY_DIR}/lib/libhip_hcc_static.a)
+    add_custom_command(TARGET hiprtc POST_BUILD COMMAND
+        ${CMAKE_COMMAND} -E copy ${CMAKE_CURRENT_BINARY_DIR}/libhiprtc.so.${HIP_VERSION} ${CMAKE_CURRENT_BINARY_DIR}/lib/libhiprtc.so.${HIP_VERSION})
+    add_custom_command(TARGET hiprtc POST_BUILD COMMAND
+        ${CMAKE_COMMAND} -E create_symlink ${CMAKE_CURRENT_BINARY_DIR}/lib/libhiprtc.so.${HIP_VERSION} ${CMAKE_CURRENT_BINARY_DIR}/lib/libhiprtc.so)
+endif()
+add_custom_command(TARGET hip_hcc POST_BUILD COMMAND ${CMAKE_COMMAND} -E copy ${CMAKE_CURRENT_BINARY_DIR}/lpl ${CMAKE_CURRENT_BINARY_DIR}/bin/lpl)
+add_custom_command(TARGET hip_hcc POST_BUILD COMMAND ${CMAKE_COMMAND} -E copy ${CMAKE_CURRENT_BINARY_DIR}/ca ${CMAKE_CURRENT_BINARY_DIR}/bin/ca)
+add_custom_command(TARGET hip_hcc POST_BUILD COMMAND ${CMAKE_COMMAND} -E copy_directory ${PROJECT_SOURCE_DIR}/include ${CMAKE_CURRENT_BINARY_DIR}/include)
 execute_process(COMMAND "${CMAKE_COMMAND}" -E copy_directory "${HIP_SRC_PATH}/cmake" "${HIP_ROOT_DIR}/cmake" RESULT_VARIABLE RUN_HIT ERROR_QUIET)
 if(${RUN_HIT} EQUAL 0)
     execute_process(COMMAND "${CMAKE_COMMAND}" -E copy_directory "${HIP_SRC_PATH}/bin" "${HIP_ROOT_DIR}/bin" RESULT_VARIABLE RUN_HIT ERROR_QUIET)
@@ -642,7 +662,7 @@ if(${RUN_HIT} EQUAL 0)
 
     # Add top-level tests to build_tests
     add_custom_target(build_tests DEPENDS directed_tests unit_tests)
-
+    add_custom_command(TARGET build_tests PRE_BUILD COMMAND ${CMAKE_COMMAND} -E copy "${HIP_ROOT_DIR}/libhip_hcc.so" "${HIP_ROOT_DIR}/lib/")
     # Add custom target: check
     add_custom_target(check COMMAND "${CMAKE_COMMAND}" --build . --target test DEPENDS build_tests)
 else()
@@ -654,7 +674,7 @@ endif()
 #############################
 # Target: clang
 if(HIP_HIPCC_EXECUTABLE)
-    add_custom_target(analyze 
+    add_custom_target(analyze
         COMMAND ${HIP_HIPCC_EXECUTABLE} -fvisibility=hidden -fvisibility-inlines-hidden --analyze --analyzer-outputtext  -isystem /opt/rocm/include ${HIP_HCC_BUILD_FLAGS} -Wno-unused-command-line-argument -I/opt/rocm/include -c  src/*.cpp -Iinclude/ -I./
     WORKING_DIRECTORY ${HIP_SRC_PATH})
     if(CPPCHECK_EXE)
